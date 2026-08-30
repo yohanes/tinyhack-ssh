@@ -1216,19 +1216,21 @@ public class TerminalView extends View implements TerminalSession.Listener {
             iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_fullscreen,
                     terminalMenuActionListener != null && terminalMenuActionListener.isFullscreen()
                             ? "Exit fullscreen" : "Fullscreen",
+                    "Fullscreen",
                     v -> {
                         if (terminalMenuActionListener != null) terminalMenuActionListener.toggleFullscreen();
                     }));
             iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keyboard,
                     isKeyboardActuallyVisible() ? "Hide keyboard" : "Show keyboard",
+                    "Keyboard",
                     v -> { dismiss.run(); toggleKeyboard(); }));
             iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_drawer_menu,
-                    "Open drawer", v -> {
+                    "Open drawer", "Drawer", v -> {
                         dismiss.run();
                         if (terminalMenuActionListener != null) terminalMenuActionListener.openDrawer();
                     }));
             iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_add_session,
-                    "New from profile", v -> {
+                    "New from profile", "New", v -> {
                         dismiss.run();
                         showProfilePicker();
                     }));
@@ -1239,22 +1241,22 @@ public class TerminalView extends View implements TerminalSession.Listener {
             iconRow2.setGravity(android.view.Gravity.CENTER);
             iconRow2.setPadding(0, dpToPx(2), 0, dpToPx(4));
             iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_profiles,
-                    "Manage Profiles", v -> {
+                    "Manage Profiles", "Profiles", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ui.ConnectionProfilesActivity.class, "Cannot open Profiles");
                     }));
             iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keys,
-                    "SSH Keys", v -> {
+                    "SSH Keys", "Keys", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshKeysActivity.class, "Cannot open SSH Keys");
                     }));
             iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_agent,
-                    "SSH Agent", v -> {
+                    "SSH Agent", "Agent", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshAgentActivity.class, "Cannot open SSH Agent");
                     }));
             iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_settings_gear,
-                    "Settings", v -> {
+                    "Settings", "Settings", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ui.SettingsActivity.class, "Cannot open Settings");
                     }));
@@ -1317,18 +1319,32 @@ public class TerminalView extends View implements TerminalSession.Listener {
         return tv;
     }
 
-    private android.widget.ImageButton makeMenuIconButton(Context ctx, int iconRes, String desc, View.OnClickListener listener) {
-        android.widget.ImageButton btn = new android.widget.ImageButton(ctx);
-        btn.setImageResource(iconRes);
-        btn.setBackgroundColor(0x00000000);
+    private View makeMenuIconButton(Context ctx, int iconRes, String desc, String label,
+                                     View.OnClickListener listener) {
+        LinearLayout btn = new LinearLayout(ctx);
+        btn.setOrientation(LinearLayout.VERTICAL);
+        btn.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        btn.setPadding(dpToPx(4), dpToPx(8), dpToPx(4), dpToPx(2));
         btn.setContentDescription(desc);
-        btn.setPadding(dpToPx(14), dpToPx(10), dpToPx(14), dpToPx(10));
-        btn.setOnClickListener(v -> {
-            Toast.makeText(ctx, desc, Toast.LENGTH_SHORT).show();
-            listener.onClick(v);
-        });
+
+        android.widget.ImageView icon = new android.widget.ImageView(ctx);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(0xFFE0E0E0);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dpToPx(28), dpToPx(28));
+        icon.setLayoutParams(iconLp);
+        btn.addView(icon);
+
+        TextView text = new TextView(ctx);
+        text.setText(label);
+        text.setTextColor(0xFFAAAAAA);
+        text.setTextSize(10);
+        text.setPadding(0, dpToPx(3), 0, 0);
+        btn.addView(text);
+
+        btn.setOnClickListener(listener);
+        btn.setMinimumWidth(dpToPx(64));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dpToPx(48));
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(dpToPx(6), 0, dpToPx(6), 0);
         btn.setLayoutParams(lp);
         return btn;
