@@ -16,7 +16,9 @@ import com.tinyhack.ssh.R;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 public class SshAgentActivity extends AppCompatActivity {
@@ -155,12 +157,16 @@ public class SshAgentActivity extends AppCompatActivity {
         Executors.newSingleThreadExecutor().execute(() -> {
             List<SshAgentManager.AgentKeyInfo> loaded = agentManager.listKeys();
             List<SshKeyInfo> available = SshKeyManager.listKeys(this);
+            Set<String> loadedFps = new HashSet<>();
+            for (SshAgentManager.AgentKeyInfo k : loaded) {
+                if (k.fingerprint != null && !k.fingerprint.isEmpty()) loadedFps.add(k.fingerprint);
+            }
             runOnUiThread(() -> {
                 agentAdapter.setKeys(loaded);
                 textLoadedEmpty.setVisibility(loaded.isEmpty() ? View.VISIBLE : View.GONE);
                 recyclerAgent.setVisibility(loaded.isEmpty() ? View.GONE : View.VISIBLE);
                 textKeyCount.setText(loaded.size() + (loaded.size()==1?" key loaded":" keys loaded"));
-                availableAdapter.setKeys(available);
+                availableAdapter.setKeys(available, loadedFps);
                 textAvailableEmpty.setVisibility(available.isEmpty() ? View.VISIBLE : View.GONE);
                 recyclerAvailable.setVisibility(available.isEmpty() ? View.GONE : View.VISIBLE);
             });

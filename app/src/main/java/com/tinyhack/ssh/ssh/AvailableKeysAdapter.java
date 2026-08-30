@@ -12,7 +12,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.tinyhack.ssh.R;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class AvailableKeysAdapter extends RecyclerView.Adapter<AvailableKeysAdapter.ViewHolder> {
     public interface OnAddKeyListener {
@@ -20,15 +22,18 @@ public class AvailableKeysAdapter extends RecyclerView.Adapter<AvailableKeysAdap
     }
 
     private final List<SshKeyInfo> keys = new ArrayList<>();
+    private final Set<String> loadedFingerprints = new HashSet<>();
     private final OnAddKeyListener listener;
 
     public AvailableKeysAdapter(OnAddKeyListener listener) {
         this.listener = listener;
     }
 
-    public void setKeys(List<SshKeyInfo> newKeys) {
+    public void setKeys(List<SshKeyInfo> newKeys, Set<String> loadedFps) {
         keys.clear();
+        loadedFingerprints.clear();
         if (newKeys != null) keys.addAll(newKeys);
+        if (loadedFps != null) loadedFingerprints.addAll(loadedFps);
         notifyDataSetChanged();
     }
 
@@ -49,16 +54,16 @@ public class AvailableKeysAdapter extends RecyclerView.Adapter<AvailableKeysAdap
         holder.textFingerprint.setText(key.getFingerprint());
         holder.textComment.setText(key.getComment() != null ? key.getComment() : "");
 
-        // Repurpose buttons: copy becomes Add, view becomes disabled, delete hidden?
-        holder.btnCopy.setText("Add to Agent");
+        boolean inAgent = loadedFingerprints.contains(key.getFingerprint());
+        holder.btnCopy.setText(inAgent ? "In Agent" : "Add to Agent");
+        holder.btnCopy.setEnabled(!inAgent);
         holder.btnCopy.setOnClickListener(v -> {
-            if (listener != null) listener.onAddKey(key);
+            if (listener != null && !inAgent) listener.onAddKey(key);
         });
         holder.btnView.setVisibility(View.GONE);
         holder.btnDelete.setVisibility(View.GONE);
-        // Change type badge color as before
-        holder.textType.setBackgroundColor(0xFF2E3B4E);
-        holder.textType.setTextColor(0xFF7DA9FF);
+        holder.textType.setBackgroundColor(inAgent ? 0xFF2E4E3B : 0xFF2E3B4E);
+        holder.textType.setTextColor(inAgent ? 0xFF7DFF9A : 0xFF7DA9FF);
     }
 
     @Override
