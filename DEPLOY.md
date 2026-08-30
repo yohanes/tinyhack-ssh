@@ -256,7 +256,8 @@ language:
 > Tinyhack SSH is an independent, unofficial Android terminal emulator powered by
 > the open-source Ghostty VT library. It is not affiliated with or endorsed by
 > the Ghostty project. Tinyhack SSH provides a local GNU/BSD command-line
-> environment, SSH and Mosh connections, and user-enabled access for terminal
+> environment, SSH and Mosh connections (including Cloudflare Access tunnels
+> via the bundled cloudflared client), and user-enabled access for terminal
 > tools to create, inspect, edit, copy, synchronize, and manage files in shared
 > phone storage.
 

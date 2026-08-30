@@ -43,6 +43,7 @@ public class AboutActivity extends AppCompatActivity {
         {"ncurses 6.5 — X11-style", "ncurses-6.5.COPYING"},
         {"rsync 3.5.0 — GPLv3", "rsync-3.5.0.COPYING.GPLv3"},
         {"zlib 1.3.1 — zlib license", "zlib-1.3.1.LICENSE"},
+        {"cloudflared 2026.8.2 — Apache-2.0", "cloudflared-2026.8.2.LICENSE.Apache-2.0"},
     };
 
     @Override

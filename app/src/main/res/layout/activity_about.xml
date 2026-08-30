@@ -74,7 +74,7 @@
                 android:paddingTop="16dp"
                 android:textColor="#E0E0E0"
                 android:textSize="14sp"
-                android:text="The terminal engine uses Ghostty, so this application is licensed under the same terms as Ghostty (MIT License).\n\nThis app also bundles third-party open-source software under its own licenses — tap an entry below to read the full license text. Complete source offers and component details are in the Third-Party Notices." />
+                android:text="The terminal engine uses Ghostty, so this application is licensed under the same terms as Ghostty (MIT License).\n\nThis app also bundles third-party open-source software — bash, BusyBox, OpenSSH, mosh, rsync, cloudflared, and others — under its own licenses. Tap an entry below to read the full license text. Complete source offers and component details are in the Third-Party Notices." />
 
             <TextView
                 android:layout_width="match_parent"

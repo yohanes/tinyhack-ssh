@@ -17,6 +17,7 @@ its distribution.
 | GNU Bash | 5.2.37 | GPLv3 | `licenses/bash-5.2.37.COPYING.GPLv3` | upstream tarball + `build-bash/` |
 | BusyBox | 1.38.0 | GPLv2 **only** | `licenses/busybox-1.38.0.LICENSE.GPLv2` | upstream tarball + `build-busybox/` |
 | rsync | 3.5.0 | GPLv3 | `licenses/rsync-3.5.0.COPYING.GPLv3` | upstream tarball + `build-rsync/` |
+| cloudflared (Cloudflare Access tunnel client) | 2026.8.2 | Apache-2.0 | `licenses/cloudflared-2026.8.2.LICENSE.Apache-2.0` | upstream git checkout + `scripts/build-cloudflared-android.sh`, `patches/cloudflared-android.patch` |
 | OpenSSH (ssh, scp, sftp, ssh-add, ssh-agent, ssh-keygen, ssh-keyscan) | 10.5p1 | BSD-style (permissive) | `licenses/openssh-10.5p1.LICENCE` | upstream tarball + `build-openssh/`, `scripts/build-openssh-android.sh`, `patches/` |
 | OpenSSL (statically linked into OpenSSH and mosh binaries) | 3.5.7 LTS | Apache-2.0 | `licenses/openssl-3.5.7.LICENSE.Apache-2.0` | upstream tarball + `build-openssl/` |
 | Mosh (mosh-client + native `mosh` launcher) | 1.4.0 | GPLv3 | `licenses/mosh-1.4.0.COPYING.GPLv3` | `mosh/` (vendored) + `scripts/build-mosh-android.sh`, `scripts/mosh-launcher.cc` |
