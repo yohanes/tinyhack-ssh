@@ -1,11 +1,14 @@
 package com.tinyhack.ssh.ssh;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Credentials;
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.security.keystore.UserNotAuthenticatedException;
 import android.util.Log;
@@ -27,8 +30,12 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
@@ -60,6 +67,13 @@ public final class SshAgentServer {
     private static final int MAX_CONCURRENT_CLIENTS = 16;
     private static final int SK_USER_PRESENT = 0x01;
     private static final String SK_COUNTER_PREFS = "ssh_sk_counters";
+    private static final long BIOMETRIC_TIMEOUT_SECONDS = 180;
+
+    private static final ConcurrentHashMap<Long, CompletableFuture<Boolean>> PENDING_BIOMETRIC =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, BiometricAuthActivity> ACTIVE_PROMPTS =
+            new ConcurrentHashMap<>();
+    private static final AtomicLong BIOMETRIC_REQUESTS = new AtomicLong();
 
     private final String namePrefix;
     private final Context appContext;
@@ -378,6 +392,83 @@ public final class SshAgentServer {
     }
 
     private void signSecurityKey(StoredKey key, byte[] message, DataOutputStream out)
+            throws Exception {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                signSecurityKeyOnce(key, message, out);
+                return;
+            } catch (UserNotAuthenticatedException e) {
+                Log.i(TAG, "Security-key sign needs biometric auth for " + key.keyStoreAlias);
+                if (attempt >= 1 || !awaitBiometricAuth(appContext, key.keyStoreAlias)) {
+                    throw new IOException("Security-key authentication required");
+                }
+            }
+        }
+    }
+
+    /**
+     * Blocks until the user confirms a strong-biometric prompt
+     * (launched via {@link BiometricAuthActivity}) or the timeout expires. ssh
+     * waits on the agent during this time, mirroring hardware-key touch latency.
+     */
+    public static boolean awaitBiometricAuth(Context context, String alias) {
+        if (context == null) return false;
+        if (!com.tinyhack.ssh.util.BiometricHelper.isBiometricEnrolled(context)) {
+            Log.w(TAG, "No strong biometric enrolled; cannot use security key " + alias);
+            return false;
+        }
+        long id = BIOMETRIC_REQUESTS.incrementAndGet();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        PENDING_BIOMETRIC.put(id, future);
+        try {
+            Intent intent = new Intent(context, BiometricAuthActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(BiometricAuthActivity.EXTRA_REQUEST_ID, id);
+            intent.putExtra(BiometricAuthActivity.EXTRA_ALIAS, alias);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    context.startActivity(intent);
+                } catch (Exception e) {
+                    Log.w(TAG, "Cannot launch biometric prompt", e);
+                    completeBiometricAuth(id, false);
+                }
+            });
+            Boolean ok = future.get(BIOMETRIC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return Boolean.TRUE.equals(ok);
+        } catch (Exception e) {
+            Log.w(TAG, "Biometric gate failed: " + e);
+            dismissPendingPrompt(id);
+            return false;
+        } finally {
+            PENDING_BIOMETRIC.remove(id);
+        }
+    }
+
+    static void registerPrompt(long id, BiometricAuthActivity activity) {
+        ACTIVE_PROMPTS.put(id, activity);
+    }
+
+    static void unregisterPrompt(long id) {
+        ACTIVE_PROMPTS.remove(id);
+    }
+
+    private static void dismissPendingPrompt(long id) {
+        BiometricAuthActivity activity = ACTIVE_PROMPTS.get(id);
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                try {
+                    activity.finish();
+                } catch (Exception ignored) {}
+            });
+        }
+    }
+
+    static void completeBiometricAuth(long id, boolean success) {
+        CompletableFuture<Boolean> future = PENDING_BIOMETRIC.get(id);
+        if (future != null) future.complete(success);
+    }
+
+    private void signSecurityKeyOnce(StoredKey key, byte[] message, DataOutputStream out)
             throws Exception {
         int counter = nextSecurityKeyCounter(key.keyStoreAlias);
         byte flags = SK_USER_PRESENT;

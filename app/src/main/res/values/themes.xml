@@ -5,4 +5,12 @@
         <item name="android:navigationBarColor">@color/surface</item>
         <item name="colorPrimary">@color/primary</item>
     </style>
+
+    <style name="Theme.TinyhackSSH.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+    </style>
 </resources>

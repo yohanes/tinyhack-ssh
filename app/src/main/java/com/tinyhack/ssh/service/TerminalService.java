@@ -20,6 +20,8 @@ import com.tinyhack.ssh.MainActivity;
 import com.tinyhack.ssh.R;
 import com.tinyhack.ssh.model.ConnectionProfile;
 import com.tinyhack.ssh.session.TerminalSession;
+import com.tinyhack.ssh.ssh.SshAgentManager;
+import com.tinyhack.ssh.ssh.SshKeyManager;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -398,6 +400,31 @@ public class TerminalService extends Service {
             }
             String sshPath = sshBin.exists() ? sshBin.getAbsolutePath() : "ssh";
 
+            String identityPath = null;
+            if (profile.getAuthType() == ConnectionProfile.AuthType.KEY
+                    && profile.getKeyName() != null && !profile.getKeyName().isEmpty()) {
+                File keyFile = new File(homeDir + "/.ssh/" + profile.getKeyName());
+                if (SshKeyManager.readAndroidSecurityKey(keyFile) != null) {
+                    // Security key: the private key lives in the agent (Android
+                    // Keystore), never in a file. Point ssh at the public key so it
+                    // selects the agent-held identity, and make sure it is loaded.
+                    identityPath = keyFile.getAbsolutePath() + ".pub";
+                    try {
+                        SshAgentManager agent = SshAgentManager.getInstance(this);
+                        if (agent.ensureAgentRunning()) {
+                            agent.addKey(keyFile.getAbsolutePath(), null);
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Cannot load security key into agent", e);
+                    }
+                } else if (keyFile.exists()) {
+                    identityPath = keyFile.getAbsolutePath();
+                } else {
+                    File alt = new File(profile.getKeyName());
+                    if (alt.exists()) identityPath = alt.getAbsolutePath();
+                }
+            }
+
             if (isMosh) {
                 // mosh <launcher> [--ssh=ssh -i KEY -o ForwardAgent=yes] [--ssh-port=N] [extra mosh args] user@host
                 File moshBin = new File(getApplicationInfo().nativeLibraryDir, "libmosh.so");
@@ -411,14 +438,8 @@ public class TerminalService extends Service {
 
                 StringBuilder sshCmd = new StringBuilder(sshPath);
                 sshCmd.append(" -o ForwardAgent=yes");
-                if (profile.getAuthType() == ConnectionProfile.AuthType.KEY && profile.getKeyName() != null && !profile.getKeyName().isEmpty()) {
-                    File keyFile = new File(homeDir + "/.ssh/" + profile.getKeyName());
-                    if (keyFile.exists()) {
-                        sshCmd.append(" -i ").append(keyFile.getAbsolutePath());
-                    } else {
-                        File alt = new File(profile.getKeyName());
-                        if (alt.exists()) sshCmd.append(" -i ").append(alt.getAbsolutePath());
-                    }
+                if (identityPath != null) {
+                    sshCmd.append(" -i ").append(identityPath);
                 }
                 args.add("--ssh=" + sshCmd);
 
@@ -451,19 +472,9 @@ public class TerminalService extends Service {
             args.add("ssh");
             // Ensure known_hosts handling - add StrictHostKeyChecking=no for first connect? But respect profile
             // Add identity file if key specified
-            if (profile.getAuthType() == ConnectionProfile.AuthType.KEY && profile.getKeyName() != null && !profile.getKeyName().isEmpty()) {
-                File keyFile = new File(homeDir + "/.ssh/" + profile.getKeyName());
-                if (keyFile.exists()) {
-                    args.add("-i");
-                    args.add(keyFile.getAbsolutePath());
-                } else {
-                    // Try full path already
-                    File alt = new File(profile.getKeyName());
-                    if (alt.exists()) {
-                        args.add("-i");
-                        args.add(alt.getAbsolutePath());
-                    }
-                }
+            if (identityPath != null) {
+                args.add("-i");
+                args.add(identityPath);
             }
             if (profile.getPort() != 22 && profile.getPort() > 0) {
                 args.add("-p");

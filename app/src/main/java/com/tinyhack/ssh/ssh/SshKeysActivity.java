@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
@@ -213,6 +214,19 @@ public class SshKeysActivity extends AppCompatActivity implements SshKeysAdapter
                     ? SshKeyManager.generateSecurityKeyPair(this, keyName, comment)
                     : SshKeyManager.generateKeyPair(this, keyType, bits, keyName,
                             passphrase, comment);
+            if (ok) {
+                try {
+                    SshAgentManager agent = SshAgentManager.getInstance(this);
+                    if (agent.isAgentRunning()) {
+                        java.io.File keyFile = new java.io.File(
+                                SshKeyManager.getSshDir(this), keyName);
+                        boolean added = agent.addKey(keyFile.getAbsolutePath(), null);
+                        Log.i("SshKeysActivity", "Auto-add new key to agent: " + added);
+                    }
+                } catch (Exception e) {
+                    Log.w("SshKeysActivity", "Auto-add new key to agent failed", e);
+                }
+            }
             runOnUiThread(() -> {
                 if (ok) {
                     Toast.makeText(this, securityKey

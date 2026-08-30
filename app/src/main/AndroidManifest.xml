@@ -60,6 +60,13 @@
             android:label="SSH Agent"
             android:theme="@style/Theme.TinyhackSSH" />
 
+        <activity
+            android:name=".ssh.BiometricAuthActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.TinyhackSSH.Translucent" />
+
         <service
             android:name=".service.TerminalService"
             android:foregroundServiceType="specialUse"

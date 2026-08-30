@@ -735,7 +735,15 @@ public class DebugHttpServer {
                 String env = agent.getAgentEnv();
                 boolean running = agent.isAgentRunning();
                 String json = "{\"running\":"+running+",\"env\":\""+escapeJson(env)+"\",\"socket\":\""+escapeJson(agent.getSocketPath())+"\"}";
-                sendResponse(out, 200, "application/json", json.getBytes(StandardCharsets.UTF_8));
+                sendResponse(out, 200, "application/json; charset=utf-8", json.getBytes(StandardCharsets.UTF_8));
+                return;
+            }
+            if ("/ssh-agent/prompt".equals(path)) {
+                String alias = params.get("alias");
+                if (alias == null || alias.isEmpty()) alias = "debug-test";
+                boolean confirmed = com.tinyhack.ssh.ssh.SshAgentServer.awaitBiometricAuth(service, alias);
+                String json = "{\"status\":\""+(confirmed?"confirmed":"cancelled-or-timeout")+"\",\"alias\":\""+escapeJson(alias)+"\"}";
+                sendResponse(out, 200, "application/json; charset=utf-8", json.getBytes(StandardCharsets.UTF_8));
                 return;
             }
             sendResponse(out, 404, "text/plain", "Unknown ssh-agent endpoint\n".getBytes(StandardCharsets.UTF_8));
