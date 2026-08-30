@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.TinyhackSSH" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="colorPrimary">@color/primary</item>
+    </style>
+</resources>

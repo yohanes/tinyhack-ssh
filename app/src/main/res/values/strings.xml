@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Tinyhack SSH</string>
+    <string name="new_session">New Session</string>
+    <string name="font_size_up">Increase Font</string>
+    <string name="font_size_down">Decrease Font</string>
+    <string name="reset_terminal">Reset Terminal</string>
+    <string name="sessions">Sessions</string>
+    <string name="profiles">Connection Profiles</string>
+    <string name="new_profile">New Profile</string>
+    <string name="manage_profiles">Manage Profiles</string>
+</resources>

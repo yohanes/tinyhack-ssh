@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Tinyhack SSH</title>
+<meta name="description" content="Privacy policy for the Tinyhack SSH terminal emulator for Android.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <span class="brand">Tinyhack SSH</span>
+    <nav>
+      <a href="index.html">&larr; Home</a>
+      <a href="https://tinyhack.com/tinyhack-ssh/">Project page</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container page">
+  <h1>Privacy Policy</h1>
+  <p class="muted">Last updated: August 28, 2026</p>
+
+  <p><strong>Short version: Tinyhack SSH does not collect any data.</strong></p>
+
+  <h2>No data collection</h2>
+  <p>Tinyhack SSH and its developer do not collect, receive, sell, or share personal information or device data. The app contains no analytics, advertising, crash-reporting, or tracking SDKs. Network connections occur only when you direct a terminal tool such as <code>ssh</code>, <code>mosh</code>, <code>rsync</code>, or <code>wget</code> to contact a destination you choose. Data sent in those connections goes directly to that destination, not to Tinyhack SSH or its developer.</p>
+
+  <h2>Data stored on your device</h2>
+  <ul>
+    <li>Shell history and files you create or download are stored locally in the app's private storage on your device. Live terminal sessions exist only on your device while they are running.</li>
+    <li>SSH keys you create or import are stored in the app's private storage (and/or the Android Keystore for security keys) and never leave your device unless you use them to connect to a server of your choice.</li>
+    <li>Preferences (fonts, toggles such as Storage Access) are stored locally.</li>
+  </ul>
+
+  <h2>Retention and deletion</h2>
+  <p>Tinyhack SSH has no developer-operated server and therefore has no server-side user data to retain or delete. Local app data remains on your device until you delete it, remove individual profiles, keys, history, or files, clear Tinyhack SSH's app data in Android settings, or uninstall Tinyhack SSH. Uninstalling or clearing app data removes Tinyhack SSH's private local data.</p>
+
+  <h2>Security</h2>
+  <p>Android isolates Tinyhack SSH's private files from other apps. Saved connection-profile passwords are encrypted using a key held by Android Keystore. Android-backed security keys are non-exportable. Ordinary imported or generated SSH private-key files remain in the app's private storage and can optionally be protected with an SSH passphrase.</p>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><strong>All files access</strong> — optional, off by default. Requested only if you enable "Storage Access", so the bundled shell and rsync can read/write your phone storage.</li>
+    <li><strong>Biometrics</strong> — optional, used only to authorize SSH agent operations with security keys.</li>
+    <li><strong>Notifications</strong> — optional, used for the visible foreground-service notification that helps terminal sessions remain connected in the background, and for notifications explicitly emitted by terminal programs.</li>
+  </ul>
+
+  <h2>Optional local debug server</h2>
+  <p>The HTTP Debug Server is disabled by default. If you enable it, it listens only on the device loopback interface and requires a randomly generated bearer token stored in Tinyhack SSH's private files. It does not send data to the developer.</p>
+
+  <h2>Contact</h2>
+  <p>Tinyhack SSH is developed by Yohanes Nugroho. For privacy questions or requests, email <a href="mailto:tinyhack-ssh@tinyhack.com">tinyhack-ssh@tinyhack.com</a> or visit the <a href="https://tinyhack.com/tinyhack-ssh/">project page</a>.</p>
+</div>
+
+<footer>
+  <div class="container">
+    <span>&copy; 2026 Yohanes Nugroho</span>
+    <span><a href="https://tinyhack.com/tinyhack-ssh/">Project page</a> &middot; <a href="https://tinyhack.com/tinyhack-ssh/privacy.html">Privacy policy</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

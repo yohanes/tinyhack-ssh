@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#181818">
+
+    <!-- Main content. DrawerLayout ignores its own padding in onLayout, so
+         window-inset padding is applied to THIS view (and the drawer column)
+         from MainActivity instead of the DrawerLayout itself. -->
+    <LinearLayout
+        android:id="@+id/main_content_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#181818">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#202020"
+            app:title="Tinyhack SSH"
+            app:titleTextColor="#FFFFFF"
+            android:minHeight="?attr/actionBarSize" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <com.tinyhack.ssh.view.TerminalView
+                android:id="@+id/terminal_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- Selection action bar overlay -->
+            <LinearLayout
+                android:id="@+id/selection_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="#CC2D2D2D"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:visibility="gone"
+                android:elevation="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_gravity="center_vertical"
+                    android:text="Drag handles to adjust selection"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btn_copy"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Copy"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#4D90FE"
+                    style="@style/Widget.Material3.Button"
+                    android:minWidth="80dp" />
+
+                <Button
+                    android:id="@+id/btn_cancel_selection"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginStart="8dp"
+                    android:minWidth="80dp" />
+
+            </LinearLayout>
+
+            <!-- Shown when the displayed session has exited (shell exit / Ctrl-D / disconnect) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_close_session"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="12dp"
+                android:text="Close session"
+                android:textColor="#FFFFFF"
+                app:icon="@drawable/ic_close"
+                app:iconTint="#FFFFFF"
+                app:iconSize="16dp"
+                app:backgroundTint="#CCB3261E"
+                style="@style/Widget.Material3.Button"
+                android:elevation="8dp"
+                android:visibility="gone"
+                tools:ignore="MissingConstraints" />
+        </FrameLayout>
+
+        <com.tinyhack.ssh.view.ExtraKeysView
+            android:id="@+id/extra_keys_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+    <!-- Drawer -->
+    <LinearLayout
+        android:id="@+id/drawer_content"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="#121212"
+        android:elevation="8dp">
+
+        <!-- Drawer header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#1E1E1E"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tinyhack SSH"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sessions &amp; Connection Profiles"
+                android:textColor="#888888"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <!-- Sessions section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="SESSIONS"
+                        android:textColor="#AAAAAA"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05" />
+
+                    <TextView
+                        android:id="@+id/text_session_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1"
+                        android:textColor="#666666"
+                        android:textSize="11sp"
+                        android:background="#2A2A2A"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_new_session_drawer"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:icon="@android:drawable/ic_input_add"
+                        app:iconPadding="0dp"
+                        app:iconSize="16dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:contentDescription="New Session" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_sessions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="#222222" />
+
+                <!-- Profiles section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="CONNECTION PROFILES"
+                        android:textColor="#AAAAAA"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.05" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_new_profile_drawer"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        app:icon="@android:drawable/ic_input_add"
+                        app:iconPadding="0dp"
+                        app:iconSize="16dp"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:contentDescription="New Profile" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_profiles_drawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_manage_profiles"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Manage Profiles"
+                    android:textColor="#4D90FE"
+                    app:icon="@android:drawable/ic_menu_edit"
+                    app:iconTint="#4D90FE"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_ssh_keys_drawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="8dp"
+                    android:text="SSH Keys"
+                    android:textColor="#AAAAAA"
+                    app:icon="@android:drawable/ic_secure"
+                    app:iconTint="#AAAAAA"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_ssh_agent_drawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="8dp"
+                    android:text="SSH Agent"
+                    android:textColor="#4D90FE"
+                    app:icon="@android:drawable/ic_lock_idle_lock"
+                    app:iconTint="#4D90FE"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Long-press session to rename • Long-press profile to duplicate"
+            android:textColor="#555555"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:padding="12dp" />
+
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_toggle_keyboard"
+        android:title="Show/Hide Keyboard"
+        android:icon="@drawable/ic_keyboard"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_new_session"
+        android:title="@string/new_session"
+        android:icon="@android:drawable/ic_menu_add"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_new_profile"
+        android:title="New Profile"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_manage_profiles"
+        android:title="Manage Profiles"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_font_up"
+        android:title="@string/font_size_up"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_font_down"
+        android:title="@string/font_size_down"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ssh_keys"
+        android:title="SSH Keys"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_ssh_agent"
+        android:title="SSH Agent"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_settings"
+        android:title="Settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_reset"
+        android:title="@string/reset_terminal"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_about"
+        android:title="About"
+        app:showAsAction="never" />
+</menu>

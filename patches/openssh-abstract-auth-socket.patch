@@ -1,0 +1,36 @@
+--- a/authfd.c
++++ b/authfd.c
+@@ -88,12 +88,24 @@
+ ssh_get_authentication_socket_path(const char *authsocket, int *fdp)
+ {
+ 	int sock, oerrno;
++	socklen_t addrlen;
+ 	struct sockaddr_un sunaddr;
+ 
+ 	debug3_f("path '%s'", authsocket);
+ 	memset(&sunaddr, 0, sizeof(sunaddr));
+ 	sunaddr.sun_family = AF_UNIX;
+-	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
++	if (strlcpy(sunaddr.sun_path, authsocket,
++	    sizeof(sunaddr.sun_path)) >= sizeof(sunaddr.sun_path))
++		return SSH_ERR_SYSTEM_ERROR;
++	/* Android LocalServerSocket uses Linux's abstract namespace. Use the
++	 * conventional printable spelling "@name" in SSH_AUTH_SOCK. */
++	if (sunaddr.sun_path[0] == '@') {
++		sunaddr.sun_path[0] = '\0';
++		addrlen = offsetof(struct sockaddr_un, sun_path) +
++		    strlen(authsocket);
++	} else {
++		addrlen = sizeof(sunaddr);
++	}
+ 
+ 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+ 		return SSH_ERR_SYSTEM_ERROR;
+@@ -101,6 +113,6 @@
+ 	/* close on exec */
+ 	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1 ||
+-	    connect(sock, (struct sockaddr *)&sunaddr, sizeof(sunaddr)) == -1) {
++	    connect(sock, (struct sockaddr *)&sunaddr, addrlen) == -1) {
+ 		oerrno = errno;
+ 		close(sock);
+ 		errno = oerrno;

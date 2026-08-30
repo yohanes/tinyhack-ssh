@@ -1,0 +1,70 @@
+diff --git a/token/launch_browser_android.go b/token/launch_browser_android.go
+new file mode 100644
+index 00000000..65f3c354
+--- /dev/null
++++ b/token/launch_browser_android.go
+@@ -0,0 +1,17 @@
++//go:build android
++
++package token
++
++import (
++	"os/exec"
++)
++
++func getBrowserCmd(url string) *exec.Cmd {
++	// On Android, `am start` from untrusted_app is blocked by SELinux
++	// ("Failed transaction"), so directly returning nil forces the caller
++	// (transfer.go) to print the URL to stderr for manual opening.
++	// The user can then tap the hyperlink (OSC 8) in Ghostty to open the browser.
++	// If a future Android version allows `am` from untrusted_app, we could
++	// re-enable the below, but for now fallback is more reliable.
++	return nil
++}
+diff --git a/token/launch_browser_unix.go b/token/launch_browser_unix.go
+index 6d69ef9f..363ea7dd 100644
+--- a/token/launch_browser_unix.go
++++ b/token/launch_browser_unix.go
+@@ -1,4 +1,4 @@
+-//go:build linux || freebsd || openbsd || netbsd
++//go:build (linux || freebsd || openbsd || netbsd) && !android
+ 
+ package token
+ 
+@@ -7,5 +7,12 @@ import (
+ )
+ 
+ func getBrowserCmd(url string) *exec.Cmd {
++	if _, err := exec.LookPath("xdg-open"); err == nil {
++		return exec.Command("xdg-open", url)
++	}
++	// On Android (when built GOOS=linux but running on device), xdg-open
++	// doesn't exist and `am start` from untrusted_app is blocked by SELinux.
++	// Return the xdg-open command anyway; OpenBrowser will fail to start it
++	// and the caller will fall back to printing the URL to stderr.
+ 	return exec.Command("xdg-open", url)
+ }
+diff --git a/token/shell.go b/token/shell.go
+index 569cdd52..7d712196 100644
+--- a/token/shell.go
++++ b/token/shell.go
+@@ -1,6 +1,18 @@
+ package token
+ 
++import (
++	"errors"
++	"fmt"
++)
++
+ // OpenBrowser opens the specified URL in the default browser of the user
+ func OpenBrowser(url string) error {
+-	return getBrowserCmd(url).Start()
++	cmd := getBrowserCmd(url)
++	if cmd == nil {
++		return errors.New("no browser command available for this platform")
++	}
++	if err := cmd.Start(); err != nil {
++		return fmt.Errorf("failed to start browser: %w", err)
++	}
++	return nil
+ }

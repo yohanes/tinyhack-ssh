@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tinyhack SSH — Terminal emulator for Android with Ghostty core</title>
+<meta name="description" content="Tinyhack SSH is a high-performance Android terminal emulator powered by the Ghostty VT core, with an embedded GNU/BSD userland, OpenSSH suite, SSH agent, rsync, and a Termux-like touch UX.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <span class="brand">Tinyhack SSH</span>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <div class="badge">Android 14+ &middot; arm64-v8a</div>
+    <h1>Tinyhack SSH</h1>
+    <p class="tagline">A terminal emulator for Android powered by the <strong>Ghostty</strong> VT&nbsp;core, with GNU Bash, BusyBox, OpenSSH, and rsync bundled — plus an embedded SSH agent that supports FIDO2 security keys.</p>
+    <p class="muted">Tinyhack SSH is an independent, unofficial Android port. It uses the open-source Ghostty VT library and is not affiliated with or endorsed by the Ghostty project.</p>
+    <a class="btn" href="#download">Download APK</a>
+    <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh">Source Code</a>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <h2>Features</h2>
+    <div class="features">
+      <div class="feature"><h3>Ghostty VT Core</h3><p>Accurate VT100/XTerm emulation, true color, Kitty graphics protocol support, and pixel-aligned monospace rendering.</p></div>
+      <div class="feature"><h3>Bundled Userland</h3><p>GNU Bash 5.2, BusyBox (270+ utilities), OpenSSH 10.5, and rsync 3.5 — no root required.</p></div>
+      <div class="feature"><h3>SSH Agent + Security Keys</h3><p>Embedded ssh-agent with Ed25519/RSA support and FIDO2 <code>-sk</code> keys backed by the Android Keystore and biometrics.</p></div>
+      <div class="feature"><h3>Multi-Session &amp; Profiles</h3><p>Run many sessions at once; save LOCAL/SSH connection profiles and connect with one tap.</p></div>
+      <div class="feature"><h3>Termux-like UX</h3><p>Extra-keys toolbar, three-finger menus, scrollback and selection; sessions keep running in the background when you close the app.</p></div>
+      <div class="feature"><h3>Storage Access &amp; rsync</h3><p>Optional one-tap toggle links your phone storage into the shell so you can rsync your files.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="screenshots" style="background: var(--bg-alt);">
+  <div class="container">
+    <h2>Screenshots</h2>
+    <div class="screenshots">
+      <figure class="shot">
+        <img src="screenshots/terminal.png" alt="Tinyhack SSH terminal running commands in a local bash session">
+        <figcaption>Local shell with bundled Bash and BusyBox</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="screenshots/drawer.png" alt="Session drawer listing running sessions and connection profiles">
+        <figcaption>Multi-session drawer with connection profiles</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="screenshots/about.png" alt="About dialog showing developer, license, and privacy information">
+        <figcaption>About, licensing &amp; privacy</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="container" style="text-align:center;">
+    <h2>Download</h2>
+    <p style="color:var(--muted); margin-bottom:20px;">Requires Android 14 or newer on an arm64-v8a device.</p>
+    <a class="btn" href="#">Download APK</a>
+    <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh">Build from source</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <span>&copy; 2026 Yohanes Nugroho</span>
+    <span><a href="https://tinyhack.com/tinyhack-ssh/">Project page</a> &middot; <a href="https://tinyhack.com/tinyhack-ssh/privacy.html">Privacy policy</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
