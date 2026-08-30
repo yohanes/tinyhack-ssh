@@ -1232,18 +1232,30 @@ public class TerminalView extends View implements TerminalSession.Listener {
                         dismiss.run();
                         showProfilePicker();
                     }));
+            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_profiles,
+                    "Manage Profiles", v -> {
+                        dismiss.run();
+                        startActivityFromMenu(ctx, com.tinyhack.ssh.ui.ConnectionProfilesActivity.class, "Cannot open Profiles");
+                    }));
+            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keys,
+                    "SSH Keys", v -> {
+                        dismiss.run();
+                        startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshKeysActivity.class, "Cannot open SSH Keys");
+                    }));
+            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_agent,
+                    "SSH Agent", v -> {
+                        dismiss.run();
+                        startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshAgentActivity.class, "Cannot open SSH Agent");
+                    }));
             iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_settings_gear,
                     "Settings", v -> {
                         dismiss.run();
-                        try {
-                            android.content.Intent intent = new android.content.Intent(ctx, com.tinyhack.ssh.ui.SettingsActivity.class);
-                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                            ctx.startActivity(intent);
-                        } catch (Exception e) {
-                            Toast.makeText(ctx, "Cannot open Settings", Toast.LENGTH_SHORT).show();
-                        }
+                        startActivityFromMenu(ctx, com.tinyhack.ssh.ui.SettingsActivity.class, "Cannot open Settings");
                     }));
-            root.addView(iconRow);
+            android.widget.HorizontalScrollView iconScroll = new android.widget.HorizontalScrollView(ctx);
+            iconScroll.setHorizontalScrollBarEnabled(false);
+            iconScroll.addView(iconRow);
+            root.addView(iconScroll);
 
             // --- Sessions: tap to switch ---
             root.addView(makeMenuHeader(ctx, "SESSIONS"));
@@ -1279,6 +1291,16 @@ public class TerminalView extends View implements TerminalSession.Listener {
         });
         // Haptic feedback
         performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+    }
+
+    private void startActivityFromMenu(Context ctx, Class<?> cls, String errorToast) {
+        try {
+            android.content.Intent intent = new android.content.Intent(ctx, cls);
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(ctx, errorToast, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private TextView makeMenuHeader(Context ctx, String text) {
