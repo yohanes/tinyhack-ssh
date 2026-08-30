@@ -381,6 +381,16 @@ public class TerminalService extends Service {
         if (profile.getType() == ConnectionProfile.Type.SSH
                 || profile.getType() == ConnectionProfile.Type.MOSH) {
             boolean isMosh = profile.getType() == ConnectionProfile.Type.MOSH;
+            String rawHost = profile.getHost() != null ? profile.getHost().trim() : "";
+            if (!rawHost.isEmpty() && !ConnectionProfile.isValidHost(rawHost)) {
+                File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
+                String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
+                String msg = ("Cannot connect: profile '" + profile.getName() + "' has an invalid host '" + rawHost + "'.")
+                        .replace("\"", "'");
+                return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
+                        "echo \"" + msg + "\"; echo 'Host names cannot contain spaces, @, or other special characters.'; echo; exec sh"},
+                        null, profileId, sessionName);
+            }
             // Build SSH command
             File sshBin = new File(getApplicationInfo().nativeLibraryDir, "libssh.so");
             if (!sshBin.exists()) {

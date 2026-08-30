@@ -453,6 +453,11 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                     Toast.makeText(this, "Host required for " + type.name(), Toast.LENGTH_SHORT).show();
                     return;
                 }
+                String hostErr = ConnectionProfile.hostValidationError(host, "Host");
+                if (hostErr != null) {
+                    Toast.makeText(this, hostErr, Toast.LENGTH_LONG).show();
+                    return;
+                }
                 editing.setHost(host);
                 try {
                     int p = Integer.parseInt(editPort.getText().toString().trim());
@@ -472,6 +477,13 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                 editing.setCloudflaredEnabled(cfEnabled);
                 if (cfEnabled) {
                     String cfH = editCfHost.getText().toString().trim();
+                    if (!cfH.isEmpty()) {
+                        String cfErr = ConnectionProfile.hostValidationError(cfH, "Cloudflared hostname");
+                        if (cfErr != null) {
+                            Toast.makeText(this, cfErr, Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                    }
                     editing.setCloudflaredHostname(cfH.isEmpty() ? null : cfH);
                     String cfId = editCfId.getText().toString().trim();
                     editing.setCloudflaredServiceTokenId(cfId.isEmpty() ? null : cfId);

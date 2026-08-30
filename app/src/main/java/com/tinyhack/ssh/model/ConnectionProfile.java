@@ -107,6 +107,25 @@ public class ConnectionProfile {
 
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }
+
+    public static boolean isValidHost(String host) {
+        if (host == null || host.isEmpty()) return false;
+        for (int i = 0; i < host.length(); i++) {
+            char c = host.charAt(i);
+            boolean ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                    || c == '.' || c == '-' || c == '_' || c == ':';
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    public static String hostValidationError(String host, String fieldLabel) {
+        if (host == null || host.trim().isEmpty()) return fieldLabel + " is required";
+        String h = host.trim();
+        if (h.contains("@")) return fieldLabel + " must not contain '@' (put the username in the User field)";
+        if (!isValidHost(h)) return fieldLabel + " contains invalid characters (spaces and symbols are not allowed; only letters, digits, '.', '-', '_', and ':' for IPv6)";
+        return null;
+    }
     public int getPort() { return port; }
     public void setPort(int port) { this.port = port; }
     public String getUsername() { return username; }
