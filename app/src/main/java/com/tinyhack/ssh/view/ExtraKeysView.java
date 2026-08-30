@@ -20,7 +20,9 @@ import com.tinyhack.ssh.terminal.KeyCodes;
  *
  * Keyboard hidden: one compact row [show-keyboard] ESC ENTER SPACE ↑ ↓ ← →
  * Keyboard shown: two rows, Termux-style:
- *   top:    MOD | SYM | FN | NAV | VIM | EMACS | TMUX | OSC133 (one active)
+ *   top:    MENU | MOD | SYM | FN | NAV | VIM | EMACS | TMUX | OSC133
+ *           (MENU is an action button that opens the quick menu, not a mode;
+ *            one of the modes after it is active)
  *   bottom: keys for the selected mode
  *     MOD    ESC TAB CTRL ALT INS DEL CTRL-C CTRL-\
  *     SYM    - _ / ' " ; \ | ~ ( ) * > < #
@@ -134,7 +136,13 @@ public class ExtraKeysView extends LinearLayout implements TerminalView.Modifier
             return;
         }
 
-        // --- Mode selector row (only one mode active at a time) ---
+        // --- Mode selector row (MENU action + modes, only one mode active) ---
+        Button menuBtn = addKeyButton(modeRow, "MENU", v -> {
+            if (terminalView != null) terminalView.showThreeFingerMenu();
+        });
+        menuBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        menuBtn.setTextColor(Color.parseColor("#FFB74D"));
+
         addModeButton("MOD", KeyMode.MOD);
         addModeButton("SYM", KeyMode.SYM);
         addModeButton("FN", KeyMode.FN);
