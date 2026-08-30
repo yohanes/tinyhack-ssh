@@ -1208,54 +1208,57 @@ public class TerminalView extends View implements TerminalSession.Listener {
             int padH = dpToPx(20);
             root.setPadding(padH, dpToPx(4), padH, dpToPx(4));
 
-            // --- Icon row: fullscreen / keyboard / drawer / settings ---
-            LinearLayout iconRow = new LinearLayout(ctx);
-            iconRow.setOrientation(LinearLayout.HORIZONTAL);
-            iconRow.setGravity(android.view.Gravity.CENTER);
-            iconRow.setPadding(0, dpToPx(12), 0, dpToPx(4));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_fullscreen,
+            // --- Icon rows (two rows of four) ---
+            LinearLayout iconRow1 = new LinearLayout(ctx);
+            iconRow1.setOrientation(LinearLayout.HORIZONTAL);
+            iconRow1.setGravity(android.view.Gravity.CENTER);
+            iconRow1.setPadding(0, dpToPx(12), 0, 0);
+            iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_fullscreen,
                     terminalMenuActionListener != null && terminalMenuActionListener.isFullscreen()
                             ? "Exit fullscreen" : "Fullscreen",
                     v -> {
                         if (terminalMenuActionListener != null) terminalMenuActionListener.toggleFullscreen();
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keyboard,
+            iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keyboard,
                     isKeyboardActuallyVisible() ? "Hide keyboard" : "Show keyboard",
                     v -> { dismiss.run(); toggleKeyboard(); }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_drawer_menu,
+            iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_drawer_menu,
                     "Open drawer", v -> {
                         dismiss.run();
                         if (terminalMenuActionListener != null) terminalMenuActionListener.openDrawer();
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_add_session,
+            iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_add_session,
                     "New from profile", v -> {
                         dismiss.run();
                         showProfilePicker();
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_profiles,
+            root.addView(iconRow1);
+
+            LinearLayout iconRow2 = new LinearLayout(ctx);
+            iconRow2.setOrientation(LinearLayout.HORIZONTAL);
+            iconRow2.setGravity(android.view.Gravity.CENTER);
+            iconRow2.setPadding(0, dpToPx(2), 0, dpToPx(4));
+            iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_profiles,
                     "Manage Profiles", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ui.ConnectionProfilesActivity.class, "Cannot open Profiles");
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keys,
+            iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_keys,
                     "SSH Keys", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshKeysActivity.class, "Cannot open SSH Keys");
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_agent,
+            iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_agent,
                     "SSH Agent", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ssh.SshAgentActivity.class, "Cannot open SSH Agent");
                     }));
-            iconRow.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_settings_gear,
+            iconRow2.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_settings_gear,
                     "Settings", v -> {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ui.SettingsActivity.class, "Cannot open Settings");
                     }));
-            android.widget.HorizontalScrollView iconScroll = new android.widget.HorizontalScrollView(ctx);
-            iconScroll.setHorizontalScrollBarEnabled(false);
-            iconScroll.addView(iconRow);
-            root.addView(iconScroll);
+            root.addView(iconRow2);
 
             // --- Sessions: tap to switch ---
             root.addView(makeMenuHeader(ctx, "SESSIONS"));
