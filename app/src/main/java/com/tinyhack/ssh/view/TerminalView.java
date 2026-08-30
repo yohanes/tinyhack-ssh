@@ -1148,6 +1148,28 @@ public class TerminalView extends View implements TerminalSession.Listener {
         }
     }
 
+    /**
+     * Text currently on the clipboard, or null if empty/unavailable.
+     */
+    public String getClipboardText() {
+        ClipboardManager cm = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm == null || !cm.hasPrimaryClip()) return null;
+        android.content.ClipData clip = cm.getPrimaryClip();
+        if (clip == null || clip.getItemCount() == 0) return null;
+        CharSequence text = clip.getItemAt(0).coerceToText(getContext());
+        return text != null && text.length() > 0 ? text.toString() : null;
+    }
+
+    /**
+     * Paste text into the terminal and dismiss the selection.
+     */
+    public boolean pasteText(String text) {
+        if (session == null || text == null || text.isEmpty()) return false;
+        session.writePaste(text);
+        clearSelectionInternal();
+        return true;
+    }
+
     private boolean handleThreeFinger(MotionEvent event) {
         int count = event.getPointerCount();
         int action = event.getActionMasked();

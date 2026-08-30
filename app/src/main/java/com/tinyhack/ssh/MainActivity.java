@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     private Toolbar toolbar;
     private LinearLayout selectionBar;
     private android.widget.Button btnCopy;
-    private android.widget.Button btnCancelSelection;
+    private android.widget.Button btnPasteSelection;
     private View btnCloseSession;
 
     private TerminalService terminalService;
@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         extraKeysView = findViewById(R.id.extra_keys_view);
         selectionBar = findViewById(R.id.selection_bar);
         btnCopy = findViewById(R.id.btn_copy);
-        btnCancelSelection = findViewById(R.id.btn_cancel_selection);
+        btnPasteSelection = findViewById(R.id.btn_paste_selection);
         btnCloseSession = findViewById(R.id.btn_close_session);
         drawerLayout = findViewById(R.id.drawer_layout);
         recyclerSessions = findViewById(R.id.recycler_sessions);
@@ -297,15 +297,11 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
                 }
             });
         }
-        if (btnCancelSelection != null) {
-            btnCancelSelection.setOnClickListener(v -> {
-                if (terminalView != null) {
-                    terminalView.clearSelection();
-                }
-            });
+        if (btnPasteSelection != null) {
+            btnPasteSelection.setOnClickListener(v -> pasteFromClipboard());
         }
 
-        // Dismiss a dead session ("<session closed>" banner / button path)
+    // Dismiss a dead session ("<session closed>" banner / button path)
         if (btnCloseSession != null) {
             btnCloseSession.setOnClickListener(v -> closeDeadCurrentSession());
         }
@@ -468,6 +464,28 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         } else {
             Toast.makeText(this, "Profile not found", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private static final int PASTE_WARN_CHARS = 128;
+
+    private void pasteFromClipboard() {
+        if (terminalView == null) return;
+        String text = terminalView.getClipboardText();
+        if (text == null || text.isEmpty()) {
+            Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (text.length() > PASTE_WARN_CHARS) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Paste large clipboard?")
+                    .setMessage("The clipboard contains " + text.length()
+                            + " characters. Paste everything into the terminal?")
+                    .setPositiveButton("Paste", (d, w) -> terminalView.pasteText(text))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+        terminalView.pasteText(text);
     }
 
     private void updateSelectionBar(boolean selectionActive) {

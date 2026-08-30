@@ -68,10 +68,10 @@
                     android:minWidth="80dp" />
 
                 <Button
-                    android:id="@+id/btn_cancel_selection"
+                    android:id="@+id/btn_paste_selection"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Cancel"
+                    android:text="Paste"
                     android:textColor="#FFFFFF"
                     android:layout_marginStart="8dp"
                     android:minWidth="80dp" />
