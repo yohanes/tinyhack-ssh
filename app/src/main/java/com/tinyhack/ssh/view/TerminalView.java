@@ -1205,7 +1205,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
 
             LinearLayout root = new LinearLayout(ctx);
             root.setOrientation(LinearLayout.VERTICAL);
-            int padH = dpToPx(20);
+            int padH = dpToPx(12);
             root.setPadding(padH, dpToPx(4), padH, dpToPx(4));
 
             // --- Icon rows (two rows of four) ---
@@ -1339,7 +1339,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
         text.setTextColor(0xFFAAAAAA);
         // Fixed dp size (not sp): icon captions must not grow with the user's
         // font scale, or "Fullscreen" wraps mid-word / clips in narrow cells.
-        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 8);
+        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
         text.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
         text.setMaxLines(1);
         text.setPadding(0, dpToPx(3), 0, 0);
