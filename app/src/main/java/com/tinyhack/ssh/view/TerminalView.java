@@ -1324,7 +1324,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
         LinearLayout btn = new LinearLayout(ctx);
         btn.setOrientation(LinearLayout.VERTICAL);
         btn.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        btn.setPadding(dpToPx(4), dpToPx(8), dpToPx(4), dpToPx(2));
+        btn.setPadding(dpToPx(2), dpToPx(8), dpToPx(2), dpToPx(2));
         btn.setContentDescription(desc);
 
         android.widget.ImageView icon = new android.widget.ImageView(ctx);
@@ -1337,15 +1337,23 @@ public class TerminalView extends View implements TerminalSession.Listener {
         TextView text = new TextView(ctx);
         text.setText(label);
         text.setTextColor(0xFFAAAAAA);
-        text.setTextSize(10);
+        // Fixed dp size (not sp): icon captions must not grow with the user's
+        // font scale, or "Fullscreen" wraps mid-word / clips in narrow cells.
+        text.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 8);
+        text.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        text.setMaxLines(1);
         text.setPadding(0, dpToPx(3), 0, 0);
+        LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        text.setLayoutParams(textLp);
         btn.addView(text);
 
         btn.setOnClickListener(listener);
-        btn.setMinimumWidth(dpToPx(64));
+        // Equal-width cells (weight=1, width=0): the 4x2 grid stays aligned at
+        // any screen width and font scale, and captions center under icons.
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dpToPx(6), 0, dpToPx(6), 0);
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
         btn.setLayoutParams(lp);
         return btn;
     }
