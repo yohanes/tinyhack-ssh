@@ -14,6 +14,7 @@ public class NativeBridge {
         int cols,
         int cellWidth,
         int cellHeight,
+        boolean kittyGraphicsEnabled,
         SessionCallback callback
     );
 

@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.system.Os;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -155,7 +155,7 @@ public class SshAgentManager {
     public synchronized boolean startAgent() {
         synchronized (lock) {
             if (isAgentRunning()) {
-                Log.i(TAG, "Agent already running at " + socketPath);
+                SafeLog.i(TAG, "Agent already running at " + socketPath);
                 return true;
             }
             // Try Java server first (pure-Java, no native binary, works under untrusted_app)
@@ -163,17 +163,17 @@ public class SshAgentManager {
                 if (javaServer == null) javaServer = new SshAgentServer(appContext, socketPath);
                 if (javaServer.start()) {
                     String actual = javaServer.getActualSocketPath();
-                    Log.i(TAG, "Java SSH agent started at " + actual + " (requested " + socketPath + ")");
+                    SafeLog.i(TAG, "Java SSH agent started at " + actual + " (requested " + socketPath + ")");
                     actualSocketPath = actual;
                     setLocked(false);
                     agentProcess = null;
                     scheduleAutoLoad();
                     return true;
                 } else {
-                    Log.w(TAG, "Java agent start returned false, trying native");
+                    SafeLog.w(TAG, "Java agent start returned false, trying native");
                 }
             } catch (Exception e) {
-                Log.w(TAG, "Java agent failed, falling back to native", e);
+                SafeLog.w(TAG, "Java agent failed, falling back to native", e);
             }
             // Kill any stale daemon that may still hold socket (e.g., from previous manual run)
             try {
@@ -206,7 +206,7 @@ public class SshAgentManager {
             // Ensure canonical HOME for ssh-agent
             String homePath = getHomeDir().getAbsolutePath();
             try { homePath = getHomeDir().getCanonicalPath(); } catch (Exception ignored) {}
-            Log.i(TAG, "Starting ssh-agent: " + sshAgentBin + " -a " + socketPath + " HOME=" + homePath);
+            SafeLog.i(TAG, "Starting ssh-agent: " + sshAgentBin + " -a " + socketPath + " HOME=" + homePath);
             try {
                 // Use sh -c with HOME prefix to match successful manual invocation
                 String shCmd = "HOME=" + homePath + " " + sshAgentBin + " -a " + socketPath;
@@ -223,7 +223,7 @@ public class SshAgentManager {
                 if (ldPath == null || !ldPath.contains(nativeLib)) {
                     pb.environment().put("LD_LIBRARY_PATH", nativeLib + (ldPath != null ? ":" + ldPath : ""));
                 }
-                Log.i(TAG, "Env HOME=" + homePath + " PATH=" + pb.environment().get("PATH") + " LD_LIBRARY_PATH=" + pb.environment().get("LD_LIBRARY_PATH"));
+                SafeLog.i(TAG, "Env HOME=" + homePath + " PATH=" + pb.environment().get("PATH") + " LD_LIBRARY_PATH=" + pb.environment().get("LD_LIBRARY_PATH"));
 
                 pb.redirectErrorStream(true);
                 agentProcess = pb.start();
@@ -234,7 +234,7 @@ public class SshAgentManager {
                     try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                         String line;
                         while ((line = r.readLine()) != null) {
-                            Log.d(TAG, "ssh-agent: " + line);
+                            SafeLog.d(TAG, "ssh-agent: " + line);
                         }
                     } catch (Exception ignored) {}
                 }, "ssh-agent-log").start();
@@ -248,7 +248,7 @@ public class SshAgentManager {
                         try {
                             Os.chmod(socketPath, 0600);
                         } catch (Exception ignored) {}
-                        Log.i(TAG, "ssh-agent started, socket at " + socketPath);
+                        SafeLog.i(TAG, "ssh-agent started, socket at " + socketPath);
                         setLocked(false);
                         // Parent sh has likely exited, clear agentProcess reference but keep socket
                         // Keep a dummy process reference? We will clear and rely on socket existence for isRunning
@@ -259,13 +259,13 @@ public class SshAgentManager {
                     try {
                         int exit = proc.exitValue();
                         if (exit != 0) {
-                            Log.w(TAG, "ssh-agent exited quickly with " + exit);
+                            SafeLog.w(TAG, "ssh-agent exited quickly with " + exit);
                             // Capture output
                             try (BufferedReader r2 = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                                 StringBuilder sb = new StringBuilder();
                                 String line;
                                 while ((line = r2.readLine()) != null) sb.append(line).append("\n");
-                                if (sb.length() > 0) Log.w(TAG, "ssh-agent output: " + sb);
+                                if (sb.length() > 0) SafeLog.w(TAG, "ssh-agent output: " + sb);
                             } catch (Exception ignored) {}
                             agentProcess = null;
                             return false;
@@ -275,17 +275,17 @@ public class SshAgentManager {
                         // still running (for -D mode)
                     }
                 }
-                Log.w(TAG, "ssh-agent socket not created after 3s");
+                SafeLog.w(TAG, "ssh-agent socket not created after 3s");
                 // Check if daemon is running via socket existence already handled; if not, try to see if process is still alive
                 try {
                     int exit = proc.exitValue();
-                    Log.w(TAG, "ssh-agent final exit " + exit);
+                    SafeLog.w(TAG, "ssh-agent final exit " + exit);
                 } catch (IllegalThreadStateException e) {
-                    Log.w(TAG, "ssh-agent still running but no socket");
+                    SafeLog.w(TAG, "ssh-agent still running but no socket");
                 }
                 return false;
             } catch (Exception e) {
-                Log.e(TAG, "Failed to start ssh-agent", e);
+                SafeLog.e(TAG, "Failed to start ssh-agent", e);
                 agentProcess = null;
                 return false;
             }
@@ -297,7 +297,7 @@ public class SshAgentManager {
             boolean wasRunning = isAgentRunning();
             // Stop Java server first
             if (javaServer != null) {
-                try { javaServer.stop(); } catch (Exception e) { Log.w(TAG, "Error stopping Java agent", e); }
+                try { javaServer.stop(); } catch (Exception e) { SafeLog.w(TAG, "Error stopping Java agent", e); }
             }
             if (agentProcess != null) {
                 try {
@@ -306,7 +306,7 @@ public class SshAgentManager {
                         agentProcess.destroyForcibly();
                     }
                 } catch (Exception e) {
-                    Log.w(TAG, "Error stopping agent process", e);
+                    SafeLog.w(TAG, "Error stopping agent process", e);
                 } finally {
                     agentProcess = null;
                 }
@@ -335,7 +335,7 @@ public class SshAgentManager {
                 } catch (Exception ignored) {}
             }
             setLocked(false);
-            Log.i(TAG, "ssh-agent stopped");
+            SafeLog.i(TAG, "ssh-agent stopped");
             return wasRunning;
         }
     }
@@ -349,9 +349,9 @@ public class SshAgentManager {
         new Thread(() -> {
             try {
                 boolean ok = addAllKeys();
-                Log.i(TAG, "Auto-load keys: " + (ok ? "ok" : "partial (passphrase keys skipped)"));
+                SafeLog.i(TAG, "Auto-load keys: " + (ok ? "ok" : "partial (passphrase keys skipped)"));
             } catch (Exception e) {
-                Log.w(TAG, "Auto-load keys failed", e);
+                SafeLog.w(TAG, "Auto-load keys failed", e);
             }
         }, "ssh-agent-autoload").start();
     }
@@ -439,7 +439,7 @@ public class SshAgentManager {
                 return result;
             }
             if (r.exitCode != 0 && r.exitCode != 1) {
-                Log.w(TAG, "ssh-add -l failed: " + out);
+                SafeLog.w(TAG, "ssh-add -l failed: " + out);
                 return result;
             }
             // Parse lines like "256 SHA256:xxx user@host (ED25519)" or "4096 SHA256:... (RSA)"
@@ -487,7 +487,7 @@ public class SshAgentManager {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "listKeys failed", e);
+            SafeLog.e(TAG, "listKeys failed", e);
         }
         return result;
     }
@@ -497,31 +497,31 @@ public class SshAgentManager {
             if (!startAgent()) return false;
         }
         if (isLocked()) {
-            Log.w(TAG, "Agent locked; unlock before adding keys");
+            SafeLog.w(TAG, "Agent locked; unlock before adding keys");
             return false;
         }
         try {
             File keyFile = new File(privateKeyPath);
             if (!keyFile.exists()) {
-                Log.w(TAG, "Key file not found: " + privateKeyPath);
+                SafeLog.w(TAG, "Key file not found: " + privateKeyPath);
                 return false;
             }
             SshKeyManager.AndroidSecurityKey securityKey =
                     SshKeyManager.readAndroidSecurityKey(keyFile);
             if (securityKey != null) {
                 if (javaServer == null) {
-                    Log.w(TAG, "Security keys require the Java agent (native agent in use)");
+                    SafeLog.w(TAG, "Security keys require the Java agent (native agent in use)");
                     return false;
                 }
                 boolean added = javaServer.addAndroidSecurityKey(securityKey);
-                Log.i(TAG, "Add Android security key " + securityKey.alias + " result=" + added);
+                SafeLog.i(TAG, "Add Android security key " + securityKey.alias + " result=" + added);
                 return added;
             }
             ExecResult r = execSshAddWithPassphrase(keyFile.getAbsolutePath(), passphrase, 5000);
-            Log.i(TAG, "ssh-add " + keyFile.getName() + " exit=" + r.exitCode + " out=" + r.out);
+            SafeLog.i(TAG, "ssh-add " + keyFile.getName() + " exit=" + r.exitCode + " out=" + r.out);
             return r.exitCode == 0;
         } catch (Exception e) {
-            Log.e(TAG, "addKey failed", e);
+            SafeLog.e(TAG, "addKey failed", e);
             return false;
         }
     }
@@ -531,7 +531,7 @@ public class SshAgentManager {
             if (!startAgent()) return false;
         }
         if (isLocked()) {
-            Log.w(TAG, "Agent locked; unlock before adding keys");
+            SafeLog.w(TAG, "Agent locked; unlock before adding keys");
             return false;
         }
         List<SshKeyInfo> keys = SshKeyManager.listKeys(appContext);
@@ -549,10 +549,10 @@ public class SshAgentManager {
         if (!isAgentRunning()) return false;
         try {
             ExecResult r = execSshAdd(new String[]{"-D"}, 3000);
-            Log.i(TAG, "ssh-add -D exit=" + r.exitCode + " out=" + r.out);
+            SafeLog.i(TAG, "ssh-add -D exit=" + r.exitCode + " out=" + r.out);
             return r.exitCode == 0;
         } catch (Exception e) {
-            Log.e(TAG, "removeAll failed", e);
+            SafeLog.e(TAG, "removeAll failed", e);
             return false;
         }
     }
@@ -575,7 +575,7 @@ public class SshAgentManager {
             }
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "removeKey failed", e);
+            SafeLog.e(TAG, "removeKey failed", e);
             return false;
         }
     }

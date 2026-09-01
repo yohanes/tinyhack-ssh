@@ -21,7 +21,7 @@
 
 <div class="container page">
   <h1>Privacy Policy</h1>
-  <p class="muted">Last updated: August 28, 2026</p>
+  <p class="muted">Last updated: August 31, 2026</p>
 
   <p><strong>Short version: Tinyhack SSH does not collect any data.</strong></p>
 
@@ -31,25 +31,29 @@
   <h2>Data stored on your device</h2>
   <ul>
     <li>Shell history and files you create or download are stored locally in the app's private storage on your device. Live terminal sessions exist only on your device while they are running.</li>
-    <li>SSH keys you create or import are stored in the app's private storage (and/or the Android Keystore for security keys) and never leave your device unless you use them to connect to a server of your choice.</li>
-    <li>Preferences (fonts, toggles such as Storage Access) are stored locally.</li>
+    <li>Connection profiles can contain server hostnames, usernames, ports, and optional passwords or Cloudflare Access service-token credentials. These profiles remain in the app's private storage. Passwords and Cloudflare token secrets are encrypted with Android Keystore before a profile is saved.</li>
+    <li>SSH private-key material you create or import is stored in the app's private storage (and/or Android Keystore for security keys). SSH authentication sends signatures, not the private key. If you explicitly enable agent forwarding for a trusted profile, that server can request signatures from the agent while the connection is active.</li>
+    <li>Preferences (fonts and feature/security toggles) are stored locally.</li>
   </ul>
 
   <h2>Retention and deletion</h2>
   <p>Tinyhack SSH has no developer-operated server and therefore has no server-side user data to retain or delete. Local app data remains on your device until you delete it, remove individual profiles, keys, history, or files, clear Tinyhack SSH's app data in Android settings, or uninstall Tinyhack SSH. Uninstalling or clearing app data removes Tinyhack SSH's private local data.</p>
 
   <h2>Security</h2>
-  <p>Android isolates Tinyhack SSH's private files from other apps. Saved connection-profile passwords are encrypted using a key held by Android Keystore. Android-backed security keys are non-exportable. Ordinary imported or generated SSH private-key files remain in the app's private storage and can optionally be protected with an SSH passphrase.</p>
+  <p>Android isolates Tinyhack SSH's private files from other apps. Saved connection-profile passwords and Cloudflare token secrets are encrypted using a key held by Android Keystore; an encryption failure causes the credential not to be saved. Android-backed security keys are non-exportable. Ordinary imported or generated SSH private-key files remain in the app's private storage and can optionally be protected with an SSH passphrase.</p>
+
+  <h2>Terminal-controlled features</h2>
+  <p>Remote terminal output is untrusted. Kitty graphics and OSC 52 clipboard writes are disabled by default and can be enabled separately for an individual profile. OSC 52 permits terminal output to replace the Android clipboard. SSH agent forwarding is also disabled by default and should be enabled only for a server you trust. Web links detected in terminal output require confirmation by default.</p>
 
   <h2>Permissions</h2>
   <ul>
-    <li><strong>All files access</strong> — optional, off by default. Requested only if you enable "Storage Access", so the bundled shell and rsync can read/write your phone storage.</li>
+    <li><strong>Storage</strong> — the Google Play build does not request broad all-files access. The F-Droid/direct-download build declares All files access so terminal tools can use filesystem paths, but the feature remains disabled until you explicitly enable Storage Access and grant it in Android Settings. App-created files and shell data otherwise remain in Tinyhack SSH's private storage.</li>
     <li><strong>Biometrics</strong> — optional, used only to authorize SSH agent operations with security keys.</li>
     <li><strong>Notifications</strong> — optional, used for the visible foreground-service notification that helps terminal sessions remain connected in the background, and for notifications explicitly emitted by terminal programs.</li>
   </ul>
 
   <h2>Optional local debug server</h2>
-  <p>The HTTP Debug Server is disabled by default. If you enable it, it listens only on the device loopback interface and requires a randomly generated bearer token stored in Tinyhack SSH's private files. It does not send data to the developer.</p>
+  <p>Development builds include an optional HTTP Debug Server for local automation; release builds cannot start it. In a development build it is disabled by default, listens only on the device loopback interface, and requires a randomly generated bearer token stored in Tinyhack SSH's private files. Requests have strict size, timeout, and concurrency limits. The server can expose terminal contents and control sessions to a client that possesses the token; it does not send data to the developer.</p>
 
   <h2>Contact</h2>
   <p>Tinyhack SSH is developed by Yohanes Nugroho. For privacy questions or requests, email <a href="mailto:tinyhack-ssh@tinyhack.com">tinyhack-ssh@tinyhack.com</a> or visit the <a href="https://tinyhack.com/tinyhack-ssh/">project page</a>.</p>
@@ -58,7 +62,7 @@
 <footer>
   <div class="container">
     <span>&copy; 2026 Yohanes Nugroho</span>
-    <span><a href="https://tinyhack.com/tinyhack-ssh/">Project page</a> &middot; <a href="https://tinyhack.com/tinyhack-ssh/privacy.html">Privacy policy</a></span>
+    <span><a href="https://tinyhack.com/tinyhack-ssh/">Project page</a> &middot; <a href="https://tinyhack.com/tinyhack-ssh/privacy.html">Privacy policy</a> &middot; <a href="third-party-notices.txt">Licenses &amp; source offer</a></span>
   </div>
 </footer>
 

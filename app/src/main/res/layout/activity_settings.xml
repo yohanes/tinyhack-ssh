@@ -256,6 +256,7 @@
             </LinearLayout>
 
             <View
+                android:id="@+id/divider_debug_storage"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#222222"
@@ -264,6 +265,7 @@
 
             <!-- Debugging & Storage -->
             <TextView
+                android:id="@+id/label_debug_storage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="DEBUGGING &amp; STORAGE"

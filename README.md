@@ -10,11 +10,11 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 
 ## 🚀 Features
 
-- **Ghostty Native Core**: Embedded libghostty terminal engine providing accurate VT sequence parsing, reflow, colors, and styling. Advertises `TERM=xterm-kitty` (`TERM_PROGRAM=ghostty`, bundled `xterm-ghostty`/`xterm-kitty` terminfo via `TERMINFO`) so tools like `chafa` auto-select Kitty graphics (no `chafa -f kitty` needed), both locally and over SSH.
-- **Kitty Graphics Protocol**: Image placements composited onto cached bitmaps by z-layer — full-screen TUI apps like `tode` (VS Code in terminal) render correctly; `kitty +kitten icat` and `chafa` both work out of the box.
+- **Ghostty Native Core**: Embedded libghostty terminal engine providing accurate VT sequence parsing, reflow, colors, and styling. Profiles use `TERM=xterm-256color` by default and can explicitly enable `TERM=xterm-kitty`; matching terminfo entries are bundled via `TERMINFO`.
+- **Optional Kitty Graphics Protocol**: Per-profile opt-in for image placements composited onto bounded cached bitmaps by z-layer. It is disabled by default to limit memory and untrusted remote-output capabilities.
 - **Embedded GNU Bash Shell (5.2.37)**: Full interactive shell with GNU Readline, history management, persistent `~/.bashrc`, aliases, auto-wrap multi-line prompts, and programmable tab-completion.
 - **Embedded BusyBox Suite (1.38.0)**: Over 270 user-space POSIX command-line utilities (`grep`, `sed`, `awk`, `find`, `tar`, `gzip`, `bzip2`, `xz`, `unzip`, `vi`, `less`, `tree`, `cal`, `bc`, `kill`, `pgrep`, `pkill`, `top`, `ps`, `nc`, `wget`, `curl`, etc.) enabled for non-root execution.
-- **Embedded OpenSSH Suite (10.5p1 + OpenSSL 3.5.7 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
+- **Embedded OpenSSH Suite (10.5p1 + OpenSSL 3.5.8 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
 - **Embedded rsync (3.5.0)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
 - **Embedded Mosh (1.4.0)**: Roaming/low-latency remote terminal with local echo prediction (`mosh [user@]host`; UDP survives Wi-Fi changes and sleep). Ships with a native launcher replacing mosh.pl.
 - **Embedded cloudflared (2026.8+)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
@@ -30,15 +30,16 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Multi-Session & Connection Profiles**:
   - Drawer-based session list: switch, rename (long-press), close.
   - Connection profiles (LOCAL / SSH / MOSH) with host, port, username, key, shell, cwd, env, and extra args (ssh or mosh, e.g. `--predict=always`); one-tap connect into a new session.
-  - Cloudflare Access option per SSH/MOSH profile: toggle "Use Cloudflare Access", set Access hostname + optional Service Token ID/Secret and `--destination` for bastion mode.
+  - SSH agent forwarding, Kitty graphics, and OSC 52 clipboard writes are separate per-profile opt-ins and default off.
+  - Cloudflare Access option per SSH profile: toggle "Use Cloudflare Access", set Access hostname + optional Service Token ID/Secret and `--destination` for bastion mode. Mosh is not offered through this TCP tunnel because its data path requires direct UDP reachability.
 - **Termux-like UX & Background Running**:
   - Three-finger tap menu, scrollback, selection mode with copy bar.
   - **Fullscreen mode** via the three-finger menu (hides the toolbar, status bar, and navigation bar); **Open drawer** menu entry keeps sessions/profiles reachable while fullscreen.
   - Closing the app keeps sessions running as a foreground service; a persistent notification reopens the terminal and offers an **Exit** action that fully terminates the app.
-  - Optional **Storage Access** toggle creates `~/storage -> /storage/emulated/0` so shells/rsync can reach phone files (see Settings).
+  - The F-Droid/direct-download build offers an optional **Storage Access** toggle that creates `~/storage -> /storage/emulated/0` so shells/rsync can reach phone files. The Google Play build omits both the permission and the toggle.
 - **Clickable Hyperlinks (OSC 8)**:
   - URIs embedded as `ESC]8;;https://example.com ESC\` are underlined and tappable; tap opens the URL.
-  - By default shows a confirmation dialog with the (truncated) URL and **Open** / **Copy Link** / **Cancel**; enable **Confirm URL click** in Settings to open directly.
+  - By default shows a confirmation dialog with the (truncated) URL and **Open** / **Copy Link** / **Cancel**. The **Confirm URL click** setting now directly reflects that behavior, and only HTTP(S)/mailto links can open.
 - **Desktop Notifications (OSC 9 / OSC 777)**:
   - Programs that emit `ESC]9;message BEL` or `ESC]777;notify;title;body BEL` trigger an Android notification in channel *Desktop Notifications* that opens Tinyhack SSH on tap.
 - **Styled Underlines & Underline Colors (SGR 4:x / 58)**:
@@ -61,7 +62,7 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
   - Desktop-like `ESC` sequencing (350 ms timeout; `ESC` + `0` sends instant `F10` for Midnight Commander).
   - Proper Backspace standard (`0x7F` DEL) handling for local shells and remote Linux SSH sessions.
 - **Settings Page**:
-  - Dedicated screen with Font (family + size), Confirm URL click, HTTP Debug Server, and Storage Access.
+  - Dedicated screen with Font (family + size) and Confirm URL click. Debug builds additionally expose the HTTP Debug Server; F-Droid/direct-download builds expose Storage Access.
   - Opened from the toolbar overflow menu or the three-finger tap menu; all options persisted.
 - **Debug & Automation HTTP Server (opt-in)**:
   - Port 8080 HTTP server for screen inspection and automated input.
@@ -94,6 +95,13 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 
 ## 🔧 Building & Installing
 
+### Distribution variants
+
+- `play`: Google Play build. It never declares `MANAGE_EXTERNAL_STORAGE` and cannot enable Storage Access.
+- `fdroid`: F-Droid/direct-download build. It declares `MANAGE_EXTERNAL_STORAGE`, but access remains off until the user enables Storage Access and grants Android's All files access setting.
+
+Both variants use package ID `com.tinyhack.ssh`. Use the same signing key for direct-download upgrades if users should be able to move between your builds without reinstalling. Official F-Droid builds may use a different F-Droid-controlled signing key.
+
 ### Prerequisites
 
 - **Android SDK & NDK** (API 34, NDK 26+).
@@ -106,11 +114,11 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 # Set Android SDK path
 export ANDROID_HOME=$HOME/Android/Sdk
 
-# Build Debug APK
-./gradlew assembleDebug
+# Build the development APK with Storage Access available
+./gradlew assembleFdroidDebug
 
 # Install on connected device
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
 
 # Launch App
 adb shell am start -n com.tinyhack.ssh/.MainActivity
@@ -118,25 +126,28 @@ adb shell am start -n com.tinyhack.ssh/.MainActivity
 
 ---
 
-## 🛠️ Testing & Automation via Debug Server
+## 🛠️ Testing & Automation via Debug Server (development builds only)
 
-The debug HTTP server is **disabled by default**. Enable it first: Settings (toolbar overflow menu → Settings) → "HTTP Debug Server" (the setting persists). Then:
+The debug HTTP server is excluded from runtime use in release builds and is
+**disabled by default** in debug builds. Enable it first: Settings (toolbar
+overflow menu → Settings) → "HTTP Debug Server" (the setting persists). Then:
 
 ```bash
 # Forward port 8080 to host
 adb forward tcp:8080 tcp:8080
+TOK=$(adb shell run-as com.tinyhack.ssh cat files/http_debug_token | tr -d '\r\n')
 
 # Get screen text dump
-curl -s http://localhost:8080/text
+curl -s -H "Authorization: Bearer $TOK" http://localhost:8080/text
 
 # Send text / commands to terminal
-curl -s -X POST --data-binary $'ls -la\n' http://localhost:8080/input
+curl -s -H "Authorization: Bearer $TOK" -X POST --data-binary $'ls -la\n' http://localhost:8080/input
 
 # Session / profile / agent introspection and automation
-curl -s http://localhost:8080/sessions | python3 -m json.tool
-curl -s "http://localhost:8080/sessions/new?profileId=<id>"
-curl -s http://localhost:8080/profiles | python3 -m json.tool
-curl -s http://localhost:8080/ssh-agent/status | python3 -m json.tool
+curl -s -H "Authorization: Bearer $TOK" http://localhost:8080/sessions | python3 -m json.tool
+curl -s -H "Authorization: Bearer $TOK" -X POST "http://localhost:8080/sessions/new?profileId=<id>"
+curl -s -H "Authorization: Bearer $TOK" http://localhost:8080/profiles | python3 -m json.tool
+curl -s -H "Authorization: Bearer $TOK" http://localhost:8080/ssh-agent/status | python3 -m json.tool
 ```
 
 ---
@@ -152,7 +163,7 @@ Tinyhack SSH bundles `cloudflared` (CGO-enabled, `GOOS=android`, correctly resol
 4. Optional **Destination** (`host:port`) for bastion/jump-host mode.
 5. Save → tap **Connect**.
 
-The app adds `-o ProxyCommand=/data/.../libcloudflared.so access ssh --hostname <host> [--destination …] [--id …] [--secret …]` automatically.
+The app validates and shell-quotes every generated ProxyCommand value. Service-token credentials are supplied through cloudflared's `TUNNEL_SERVICE_TOKEN_ID` and `TUNNEL_SERVICE_TOKEN_SECRET` environment variables so they do not appear in the child process arguments.
 
 **Option 2 – `~/.ssh/config` (desktop parity):**
 ```ssh-config
@@ -161,10 +172,12 @@ Host ssh-cf
   ProxyCommand /data/data/com.tinyhack.ssh/files/usr/bin/cloudflared access ssh --hostname %h
   User ubuntu
 ```
-Then `ssh ssh-cf` from any local shell works. For Service Tokens add ` --id <ID> --secret <SECRET>` to the `ProxyCommand`.
+Then `ssh ssh-cf` from any local shell works. For Service Tokens, export
+`TUNNEL_SERVICE_TOKEN_ID` and `TUNNEL_SERVICE_TOKEN_SECRET` in that shell before
+starting SSH; do not put credentials in `~/.ssh/config` or process arguments.
 
 **Building `cloudflared`:**
 ```bash
 ./scripts/build-cloudflared-android.sh   # GOOS=android CGO_ENABLED=1, patches applied, outputs libcloudflared.so
-./gradlew assembleDebug
+./gradlew assembleFdroidDebug
 ```

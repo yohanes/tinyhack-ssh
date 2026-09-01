@@ -42,10 +42,9 @@ public final class DesktopNotificationHelper {
     }
 
     public static void show(String title, String body) {
-        android.util.Log.i("TinySSHDesktopNotify", "show title='" + title + "' body='" + body + "' ctx=" + appContext);
         Context ctx = appContext;
         if (ctx == null) {
-            android.util.Log.w("TinySSHDesktopNotify", "appContext null, abort");
+            com.tinyhack.ssh.util.SafeLog.w("TinySSHDesktopNotify", "appContext null, abort");
             return;
         }
         createChannel(ctx);
@@ -64,9 +63,10 @@ public final class DesktopNotificationHelper {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(t)
             .setContentText(b)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(body != null ? body : ""))
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(b))
             .setContentIntent(pi)
             .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         int id = NEXT_ID.getAndIncrement();
@@ -74,12 +74,12 @@ public final class DesktopNotificationHelper {
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) {
                 nm.notify(id, builder.build());
-                android.util.Log.i("TinySSHDesktopNotify", "notified id=" + id);
+                com.tinyhack.ssh.util.SafeLog.i("TinySSHDesktopNotify", "notified id=" + id);
             } else {
-                android.util.Log.w("TinySSHDesktopNotify", "NotificationManager null");
+                com.tinyhack.ssh.util.SafeLog.w("TinySSHDesktopNotify", "NotificationManager null");
             }
         } catch (Exception e) {
-            android.util.Log.w("TinySSHDesktopNotify", "notify failed", e);
+            com.tinyhack.ssh.util.SafeLog.w("TinySSHDesktopNotify", "notify failed", e);
         }
     }
 }

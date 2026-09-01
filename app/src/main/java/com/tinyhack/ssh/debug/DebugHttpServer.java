@@ -1,6 +1,6 @@
 package com.tinyhack.ssh.debug;
 
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import com.tinyhack.ssh.model.ConnectionProfile;
 import com.tinyhack.ssh.model.ProfileManager;
@@ -8,13 +8,12 @@ import com.tinyhack.ssh.service.TerminalService;
 import com.tinyhack.ssh.session.TerminalSession;
 import com.tinyhack.ssh.terminal.KeyCodes;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -25,13 +24,21 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class DebugHttpServer {
     private static final String TAG = "TinySSHDebugHttp";
+    private static final int SOCKET_TIMEOUT_MS = 5_000;
+    private static final int MAX_REQUEST_LINE_BYTES = 8 * 1024;
+    private static final int MAX_HEADER_BYTES = 32 * 1024;
+    private static final int MAX_BODY_BYTES = 1024 * 1024;
 
     public static com.tinyhack.ssh.view.TerminalView debugTerminalView = null;
 
@@ -43,7 +50,7 @@ public class DebugHttpServer {
     private final int port;
     private ServerSocket serverSocket;
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
-    private ExecutorService threadPool = Executors.newCachedThreadPool();
+    private ExecutorService threadPool = newThreadPool();
     private volatile String authToken;
 
     public DebugHttpServer(TerminalService service, int port) {
@@ -56,13 +63,16 @@ public class DebugHttpServer {
         try {
             // Recreate the pool if a previous stop() shut it down
             if (threadPool.isShutdown()) {
-                threadPool = Executors.newCachedThreadPool();
+                threadPool = newThreadPool();
             }
             authToken = getOrCreateToken();
             // Loopback only: the debug server is reachable via `adb forward`, never from the network
-            serverSocket = new ServerSocket(port, 50, InetAddress.getLoopbackAddress());
+            // adb forward targets the device IPv4 loopback socket. Android's
+            // getLoopbackAddress() may choose ::1, making the debug endpoint
+            // appear to accept and then immediately drop forwarded requests.
+            serverSocket = new ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"));
             isRunning.set(true);
-            Log.i(TAG, "TinySSH Debug HTTP Server listening on 127.0.0.1:" + port
+            SafeLog.i(TAG, "TinySSH Debug HTTP Server listening on 127.0.0.1:" + port
                     + " (auth token: files/http_debug_token, read with: "
                     + "adb shell run-as " + service.getPackageName() + " cat files/http_debug_token)");
 
@@ -70,7 +80,11 @@ public class DebugHttpServer {
                 while (isRunning.get() && !serverSocket.isClosed()) {
                     try {
                         Socket socket = serverSocket.accept();
-                        threadPool.execute(() -> handleClient(socket));
+                        try {
+                            threadPool.execute(() -> handleClient(socket));
+                        } catch (RejectedExecutionException overloaded) {
+                            try { socket.close(); } catch (IOException ignored) {}
+                        }
                     } catch (IOException e) {
                         if (!isRunning.get()) break;
                     }
@@ -79,7 +93,7 @@ public class DebugHttpServer {
             acceptThread.setDaemon(true);
             acceptThread.start();
         } catch (IOException e) {
-            Log.e(TAG, "Failed to start HTTP server on port " + port, e);
+            SafeLog.e(TAG, "Failed to start HTTP server on port " + port, e);
         }
     }
 
@@ -89,7 +103,7 @@ public class DebugHttpServer {
                 if (serverSocket != null) serverSocket.close();
             } catch (IOException ignored) {}
             threadPool.shutdownNow();
-            Log.i(TAG, "TinySSH Debug HTTP Server stopped");
+            SafeLog.i(TAG, "TinySSH Debug HTTP Server stopped");
         }
     }
 
@@ -98,48 +112,65 @@ public class DebugHttpServer {
     }
 
     private void handleClient(Socket socket) {
-        try (InputStream in = socket.getInputStream();
+        try (socket;
+             InputStream in = socket.getInputStream();
               OutputStream out = socket.getOutputStream()) {
+            socket.setSoTimeout(SOCKET_TIMEOUT_MS);
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            String requestLine = reader.readLine();
+            String requestLine = readAsciiLine(in, MAX_REQUEST_LINE_BYTES);
             if (requestLine == null || requestLine.isEmpty()) return;
 
-            String[] parts = requestLine.split(" ");
-            if (parts.length < 2) return;
+            String[] parts = requestLine.split(" ", 3);
+            if (parts.length != 3 || !parts[2].startsWith("HTTP/1.")) {
+                sendResponse(out, 400, "application/json; charset=utf-8",
+                        "{\"error\":\"bad request line\"}".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
             String method = parts[0];
             String fullPath = parts[1];
+            if (!("GET".equals(method) || "POST".equals(method) || "OPTIONS".equals(method))) {
+                sendResponse(out, 405, "application/json; charset=utf-8",
+                        "{\"error\":\"method not allowed\"}".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
 
             // Parse headers
             Map<String, String> headers = new HashMap<>();
             String line;
             int contentLength = 0;
-            while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            int headerBytes = 0;
+            while ((line = readAsciiLine(in, MAX_HEADER_BYTES)) != null && !line.isEmpty()) {
+                headerBytes += line.length() + 2;
+                if (headerBytes > MAX_HEADER_BYTES) throw new IOException("request headers too large");
                 int colon = line.indexOf(':');
                 if (colon > 0) {
-                    String k = line.substring(0, colon).trim().toLowerCase();
+                    String k = line.substring(0, colon).trim().toLowerCase(Locale.ROOT);
                     String v = line.substring(colon + 1).trim();
                     headers.put(k, v);
                     if ("content-length".equals(k)) {
-                        try { contentLength = Integer.parseInt(v); } catch (NumberFormatException ignored) {}
+                        try {
+                            contentLength = Integer.parseInt(v);
+                        } catch (NumberFormatException invalidLength) {
+                            sendResponse(out, 400, "application/json; charset=utf-8",
+                                    "{\"error\":\"invalid content-length\"}".getBytes(StandardCharsets.UTF_8));
+                            return;
+                        }
                     }
                 }
             }
-
-            // Read body if any - need to handle binary safe? For our endpoints, char buffer is ok
-            String body = "";
-            if (contentLength > 0) {
-                char[] cbuf = new char[contentLength];
-                int readTotal = 0;
-                while (readTotal < contentLength) {
-                    int r = reader.read(cbuf, readTotal, contentLength - readTotal);
-                    if (r < 0) break;
-                    readTotal += r;
-                }
-                body = new String(cbuf, 0, readTotal);
+            if (headers.containsKey("transfer-encoding")) {
+                sendResponse(out, 400, "application/json; charset=utf-8",
+                        "{\"error\":\"transfer-encoding is not supported\"}".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
+            if (contentLength < 0 || contentLength > MAX_BODY_BYTES) {
+                sendResponse(out, 413, "application/json; charset=utf-8",
+                        "{\"error\":\"request body too large\"}".getBytes(StandardCharsets.UTF_8));
+                return;
             }
 
-            // Parse path and query params
+            // Parse and authenticate from headers/query before reading or
+            // allocating a request body. Loopback is shared by local apps.
             String path = fullPath;
             Map<String, String> queryParams = new HashMap<>();
             int qIdx = fullPath.indexOf('?');
@@ -168,14 +199,50 @@ public class DebugHttpServer {
                 return;
             }
 
+            String body = "";
+            if (contentLength > 0) {
+                byte[] bodyBytes = new byte[contentLength];
+                int readTotal = 0;
+                while (readTotal < contentLength) {
+                    int count = in.read(bodyBytes, readTotal, contentLength - readTotal);
+                    if (count < 0) throw new IOException("truncated request body");
+                    readTotal += count;
+                }
+                body = new String(bodyBytes, StandardCharsets.UTF_8);
+            }
+
             // Also parse body as query params if it looks like form encoded and path needs params (for POST)
             // But we keep body separate for JSON handling
 
             routeRequest(method, path, queryParams, body, out, headers);
 
         } catch (Exception e) {
-            Log.w(TAG, "Error handling client request", e);
+            SafeLog.w(TAG, "Error handling client request", e);
         }
+    }
+
+    private static ExecutorService newThreadPool() {
+        return new ThreadPoolExecutor(2, 4, 30, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(16), new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    private static String readAsciiLine(InputStream input, int maxBytes) throws IOException {
+        ByteArrayOutputStream line = new ByteArrayOutputStream(Math.min(maxBytes, 256));
+        boolean sawCarriageReturn = false;
+        while (line.size() <= maxBytes) {
+            int value = input.read();
+            if (value < 0) return line.size() == 0 ? null : line.toString(StandardCharsets.US_ASCII.name());
+            if (value == '\n') break;
+            if (sawCarriageReturn) line.write('\r');
+            if (value == '\r') {
+                sawCarriageReturn = true;
+            } else {
+                line.write(value);
+                sawCarriageReturn = false;
+            }
+        }
+        if (line.size() > maxBytes) throw new IOException("HTTP line too long");
+        return line.toString(StandardCharsets.US_ASCII.name());
     }
 
     private boolean isAuthorized(Map<String, String> headers, Map<String, String> params) {
@@ -273,7 +340,7 @@ public class DebugHttpServer {
             String k = params.get("k");
             if (k == null && !body.isEmpty()) k = body.trim();
             if (session != null && k != null) {
-                handleKeyInput(session, k.toUpperCase());
+                handleKeyInput(session, k.toUpperCase(Locale.ROOT));
                 try { Thread.sleep(50); } catch (InterruptedException ignored) {}
                 String text = session.getScreenText();
                 sendResponse(out, 200, "text/plain; charset=utf-8", text.getBytes(StandardCharsets.UTF_8));
@@ -899,7 +966,7 @@ public class DebugHttpServer {
                         m.setAccessible(true);
                         m.invoke(debugTerminalView);
                     } catch (Exception e) {
-                        android.util.Log.e(TAG, "triggerMenu failed", e);
+                        com.tinyhack.ssh.util.SafeLog.e(TAG, "triggerMenu failed", e);
                     }
                 });
                 sendResponse(out, 200, "text/plain", "menu triggered\n".getBytes(StandardCharsets.UTF_8));
@@ -911,7 +978,7 @@ public class DebugHttpServer {
 
         if ("/escTest".equals(path)) {
             String type = params.get("type");
-            if (type == null) type = body.trim().toLowerCase();
+            if (type == null) type = body.trim().toLowerCase(Locale.ROOT);
             if (debugTerminalView != null) {
                 android.os.Handler h = new android.os.Handler(android.os.Looper.getMainLooper());
                 if ("esc".equals(type)) {
@@ -1373,9 +1440,9 @@ public class DebugHttpServer {
         String header = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
             "Content-Type: " + contentType + "\r\n" +
             "Content-Length: " + data.length + "\r\n" +
-            "Access-Control-Allow-Origin: *\r\n" +
-            "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
-            "Access-Control-Allow-Headers: Content-Type, Authorization\r\n" +
+            "Cache-Control: no-store\r\n" +
+            "Referrer-Policy: no-referrer\r\n" +
+            "X-Content-Type-Options: nosniff\r\n" +
             "Connection: close\r\n\r\n";
         out.write(header.getBytes(StandardCharsets.UTF_8));
         if (data.length > 0) {

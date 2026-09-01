@@ -4,7 +4,7 @@ import android.content.Context;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.StrongBoxUnavailableException;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 public class SshKeyManager {
     private static final String TAG = "SshKeyManager";
@@ -31,7 +32,10 @@ public class SshKeyManager {
     private static final String SK_ALIAS_PREFIX = "ghostty.ssh.sk.";
     public static final String SK_ECDSA_TYPE = "sk-ecdsa-sha2-nistp256@openssh.com";
     public static final String SK_APPLICATION = "ssh:";
-    private static final int SK_AUTH_SECONDS = 300;
+    // The agent independently prompts before every SSH signature. Keep the
+    // Keystore token window only long enough for the prompt callback to reach the
+    // StrongBox/TEE signing operation.
+    private static final int SK_AUTH_SECONDS = 15;
 
     /**
      * Key names become filenames inside ~/.ssh: reject path traversal and
@@ -108,7 +112,7 @@ public class SshKeyManager {
                 if (!pubContent.isEmpty()) {
                     String[] parts = pubContent.split("\\s+");
                     if (parts.length >= 1) {
-                        type = parts[0].replace("ssh-", "").toUpperCase();
+                        type = parts[0].replace("ssh-", "").toUpperCase(Locale.ROOT);
                     }
                     if (parts.length >= 3) {
                         comment = parts[2];
@@ -155,7 +159,7 @@ public class SshKeyManager {
     public static boolean generateKeyPair(Context context, String keyType, int bits, String name,
                                           String passphrase, String comment) {
         if (!isSafeKeyName(name)) {
-            Log.w(TAG, "Refusing unsafe key name: " + name);
+            SafeLog.w(TAG, "Refusing unsafe key name: " + name);
             return false;
         }
         File sshDir = getSshDir(context);
@@ -170,7 +174,7 @@ public class SshKeyManager {
         List<String> cmd = new ArrayList<>();
         cmd.add(sshKeygenPath);
         cmd.add("-t");
-        cmd.add(keyType.toLowerCase());
+        cmd.add(keyType.toLowerCase(Locale.ROOT));
         if ("rsa".equalsIgnoreCase(keyType) && bits > 0) {
             cmd.add("-b");
             cmd.add(String.valueOf(bits));
@@ -208,7 +212,7 @@ public class SshKeyManager {
                 }
             }
             int exitCode = process.waitFor();
-            Log.d(TAG, "ssh-keygen exit=" + exitCode + ", out=" + sb);
+            SafeLog.d(TAG, "ssh-keygen exit=" + exitCode + ", out=" + sb);
             if (exitCode == 0) {
                 try {
                     android.system.Os.chmod(keyFile.getAbsolutePath(), 0600);
@@ -221,7 +225,7 @@ public class SshKeyManager {
             }
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "ssh-keygen execution failed", e);
+            SafeLog.e(TAG, "ssh-keygen execution failed", e);
             return false;
         } finally {
             wipePassphraseFile(passFile);
@@ -231,7 +235,7 @@ public class SshKeyManager {
     /** Generate a non-exportable OpenSSH -sk key backed by Android Keystore. */
     public static boolean generateSecurityKeyPair(Context context, String name, String comment) {
         if (!isSafeKeyName(name)) {
-            Log.w(TAG, "Refusing unsafe key name: " + name);
+            SafeLog.w(TAG, "Refusing unsafe key name: " + name);
             return false;
         }
         File sshDir = getSshDir(context);
@@ -240,14 +244,14 @@ public class SshKeyManager {
         String alias = SK_ALIAS_PREFIX + name;
         try {
             if (metadataFile.exists() || publicFile.exists()) {
-                Log.w(TAG, "Key already exists: " + name);
+                SafeLog.w(TAG, "Key already exists: " + name);
                 return false;
             }
             KeyPair pair;
             try {
                 pair = generateAndroidSkKey(alias, true);
             } catch (StrongBoxUnavailableException e) {
-                Log.i(TAG, "StrongBox unavailable; using the device TEE for " + alias);
+                SafeLog.i(TAG, "StrongBox unavailable; using the device TEE for " + alias);
                 pair = generateAndroidSkKey(alias, false);
             }
             ECPublicKey publicKey = (ECPublicKey) pair.getPublic();
@@ -267,7 +271,7 @@ public class SshKeyManager {
             android.system.Os.chmod(publicFile.getAbsolutePath(), 0644);
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "Failed to generate Android security key", e);
+            SafeLog.e(TAG, "Failed to generate Android security key", e);
             try {
                 KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
                 keyStore.load(null);
@@ -284,8 +288,9 @@ public class SshKeyManager {
         KeyPairGenerator generator = KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEYSTORE);
         // Strong biometrics only: a device-credential (PIN/pattern) unlock must
-        // not open a signing window for security keys. Per-signature prompting
-        // is approximated by the short (SK_AUTH_SECONDS) auth window.
+        // not open a signing window for security keys. SshAgentServer explicitly
+        // prompts for every signature; this short window lets the resulting auth
+        // token reach the StrongBox/TEE operation.
         KeyGenParameterSpec.Builder builder = new KeyGenParameterSpec.Builder(
                 alias, KeyProperties.PURPOSE_SIGN)
                 .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
@@ -314,7 +319,7 @@ public class SshKeyManager {
             String comment = publicParts.length == 3 ? publicParts[2] : privateFile.getName();
             return new AndroidSecurityKey(lines[1], lines[2], blob, comment);
         } catch (IllegalArgumentException e) {
-            Log.w(TAG, "Invalid Android security-key metadata " + privateFile, e);
+            SafeLog.w(TAG, "Invalid Android security-key metadata " + privateFile, e);
             return null;
         }
     }
@@ -360,7 +365,7 @@ public class SshKeyManager {
 
     public static boolean deleteKey(Context context, String name) {
         if (!isSafeKeyName(name)) {
-            Log.w(TAG, "Refusing unsafe key name: " + name);
+            SafeLog.w(TAG, "Refusing unsafe key name: " + name);
             return false;
         }
         File sshDir = getSshDir(context);
@@ -374,7 +379,7 @@ public class SshKeyManager {
                 keyStore.load(null);
                 keyStore.deleteEntry(securityKey.alias);
             } catch (Exception e) {
-                Log.e(TAG, "Failed to delete Android Keystore key " + securityKey.alias, e);
+                SafeLog.e(TAG, "Failed to delete Android Keystore key " + securityKey.alias, e);
                 ok = false;
             }
         }
@@ -385,7 +390,7 @@ public class SshKeyManager {
 
     public static boolean importKey(Context context, String name, String privateKeyContent, String publicKeyContent) {
         if (!isSafeKeyName(name)) {
-            Log.w(TAG, "Refusing unsafe key name: " + name);
+            SafeLog.w(TAG, "Refusing unsafe key name: " + name);
             return false;
         }
         File sshDir = getSshDir(context);
@@ -394,7 +399,7 @@ public class SshKeyManager {
 
         try {
             if (privateKeyContent == null || privateKeyContent.trim().isEmpty()) {
-                Log.w(TAG, "Import requires a private key");
+                SafeLog.w(TAG, "Import requires a private key");
                 return false;
             }
             try (FileOutputStream fos = new FileOutputStream(privFile)) {
@@ -425,7 +430,7 @@ public class SshKeyManager {
             String derived = sb.toString().trim();
 
             if (!valid || derived.isEmpty()) {
-                Log.w(TAG, "Imported private key failed validation, removing");
+                SafeLog.w(TAG, "Imported private key failed validation, removing");
                 privFile.delete();
                 return false;
             }
@@ -437,7 +442,7 @@ public class SshKeyManager {
                         && providedParts[0].equals(derivedParts[0])
                         && providedParts[1].equals(derivedParts[1]);
                 if (!matches) {
-                    Log.w(TAG, "Provided public key does not match private key, removing");
+                    SafeLog.w(TAG, "Provided public key does not match private key, removing");
                     privFile.delete();
                     return false;
                 }
@@ -456,7 +461,7 @@ public class SshKeyManager {
             } catch (Exception ignored) {}
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "Failed to import key", e);
+            SafeLog.e(TAG, "Failed to import key", e);
             privFile.delete();
             return false;
         }

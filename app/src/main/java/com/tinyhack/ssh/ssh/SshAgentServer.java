@@ -11,7 +11,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 import android.security.keystore.UserNotAuthenticatedException;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -133,10 +133,10 @@ public final class SshAgentServer {
             acceptThread = new Thread(this::acceptLoop, "SshAgentAccept");
             acceptThread.setDaemon(true);
             acceptThread.start();
-            Log.i(TAG, "SSH agent listening at " + envPath);
+            SafeLog.i(TAG, "SSH agent listening at " + envPath);
             return true;
         } catch (IOException e) {
-            Log.e(TAG, "Cannot bind abstract SSH agent socket " + envPath, e);
+            SafeLog.e(TAG, "Cannot bind abstract SSH agent socket " + envPath, e);
             serverSocket = null;
             running = false;
             return false;
@@ -169,7 +169,7 @@ public final class SshAgentServer {
             acceptThread = null;
         }
         keys.clear();
-        Log.i(TAG, "SSH agent stopped");
+        SafeLog.i(TAG, "SSH agent stopped");
     }
 
     public boolean isRunning() {
@@ -196,18 +196,20 @@ public final class SshAgentServer {
     public boolean addAndroidSecurityKey(SshKeyManager.AndroidSecurityKey key) {
         if (appContext == null || key == null) return false;
         try {
-            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
-            keyStore.load(null);
-            PrivateKey privateKey = (PrivateKey) keyStore.getKey(key.alias, null);
-            if (privateKey == null) return false;
+            // Do not fetch the authentication-bound private key while loading the
+            // identity or even probe its alias. Immediately after a device reboot
+            // Android Keystore may not expose credential-protected aliases yet.
+            // The authenticated metadata and public blob are sufficient for agent
+            // identity listing and SSH selection; fetch the non-exportable key
+            // after the per-signature prompt instead.
             StoredKey stored = new StoredKey(key.publicBlob, key.comment,
-                    SshKeyManager.SK_ECDSA_TYPE, privateKey, key.alias, key.application);
+                    SshKeyManager.SK_ECDSA_TYPE, null, key.alias, key.application);
             keys.removeIf(existing -> Arrays.equals(existing.blob, stored.blob));
             keys.add(stored);
-            Log.i(TAG, "Added Android security-key identity " + key.alias);
+            SafeLog.i(TAG, "Added Android security-key identity " + key.alias);
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "Cannot load Android security key " + key.alias, e);
+            SafeLog.e(TAG, "Cannot load Android security key " + key.alias, e);
             return false;
         }
     }
@@ -218,13 +220,13 @@ public final class SshAgentServer {
                 LocalSocket client = serverSocket.accept();
                 Credentials peer = client.getPeerCredentials();
                 if (peer == null || peer.getUid() != Process.myUid()) {
-                    Log.w(TAG, "Rejected SSH-agent client with uid " +
+                    SafeLog.w(TAG, "Rejected SSH-agent client with uid " +
                             (peer == null ? "unknown" : peer.getUid()));
                     client.close();
                     continue;
                 }
                 if (activeClients.incrementAndGet() > MAX_CONCURRENT_CLIENTS) {
-                    Log.w(TAG, "Rejecting SSH-agent client: too many concurrent connections");
+                    SafeLog.w(TAG, "Rejecting SSH-agent client: too many concurrent connections");
                     activeClients.decrementAndGet();
                     client.close();
                     continue;
@@ -239,7 +241,7 @@ public final class SshAgentServer {
                 worker.setDaemon(true);
                 worker.start();
             } catch (IOException e) {
-                if (running) Log.w(TAG, "SSH-agent accept failed", e);
+                if (running) SafeLog.w(TAG, "SSH-agent accept failed", e);
                 break;
             }
         }
@@ -297,13 +299,13 @@ public final class SshAgentServer {
                         }
                     }
                 } catch (Exception e) {
-                    Log.w(TAG, "SSH-agent request " + type + " failed", e);
+                    SafeLog.w(TAG, "SSH-agent request " + type + " failed", e);
                     sendStatus(out, false);
                 }
                 out.flush();
             }
         } catch (IOException e) {
-            Log.d(TAG, "SSH-agent client disconnected: " + e.getMessage());
+            SafeLog.d(TAG, "SSH-agent client disconnected: " + e.getMessage());
         }
     }
 
@@ -342,7 +344,7 @@ public final class SshAgentServer {
             throw new IOException("Constrained identities are not supported");
         keys.removeIf(existing -> Arrays.equals(existing.blob, key.blob));
         keys.add(key);
-        Log.i(TAG, "Added " + keyType + " identity " + key.comment);
+        SafeLog.i(TAG, "Added " + keyType + " identity " + key.comment);
     }
 
     private void sign(byte[] message, DataOutputStream out) throws Exception {
@@ -393,17 +395,37 @@ public final class SshAgentServer {
 
     private void signSecurityKey(StoredKey key, byte[] message, DataOutputStream out)
             throws Exception {
-        for (int attempt = 0; ; attempt++) {
+        // Always gate the SSH signature explicitly. Android Keystore authentication
+        // tokens can survive an app/agent restart for the key's validity window, so
+        // trying the operation first may sign silently after a recent fingerprint.
+        // Prompting first also preserves existing -sk keys and their remote
+        // authorized_keys entries; they do not need to be regenerated.
+        if (!awaitBiometricAuth(appContext, key.keyStoreAlias)) {
+            throw new IOException("Security-key authentication required");
+        }
+        UserNotAuthenticatedException lastAuthError = null;
+        // On some StrongBox implementations the first authentication token after a
+        // device boot becomes visible to Keystore slightly after BiometricPrompt's
+        // success callback. Retry only that transient auth error, using the same
+        // successful fingerprint window; every other failure still fails closed.
+        for (int attempt = 0; attempt < 5; attempt++) {
             try {
                 signSecurityKeyOnce(key, message, out);
                 return;
             } catch (UserNotAuthenticatedException e) {
-                Log.i(TAG, "Security-key sign needs biometric auth for " + key.keyStoreAlias);
-                if (attempt >= 1 || !awaitBiometricAuth(appContext, key.keyStoreAlias)) {
-                    throw new IOException("Security-key authentication required");
+                lastAuthError = e;
+                if (attempt < 4) {
+                    try {
+                        Thread.sleep(50L << attempt);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Security-key signing interrupted", interrupted);
+                    }
                 }
             }
         }
+        SafeLog.w(TAG, "Fingerprint token unavailable for " + key.keyStoreAlias);
+        throw new IOException("Security-key authentication expired", lastAuthError);
     }
 
     /**
@@ -414,7 +436,7 @@ public final class SshAgentServer {
     public static boolean awaitBiometricAuth(Context context, String alias) {
         if (context == null) return false;
         if (!com.tinyhack.ssh.util.BiometricHelper.isBiometricEnrolled(context)) {
-            Log.w(TAG, "No strong biometric enrolled; cannot use security key " + alias);
+            SafeLog.w(TAG, "No strong biometric enrolled; cannot use security key " + alias);
             return false;
         }
         long id = BIOMETRIC_REQUESTS.incrementAndGet();
@@ -429,14 +451,14 @@ public final class SshAgentServer {
                 try {
                     context.startActivity(intent);
                 } catch (Exception e) {
-                    Log.w(TAG, "Cannot launch biometric prompt", e);
+                    SafeLog.w(TAG, "Cannot launch biometric prompt", e);
                     completeBiometricAuth(id, false);
                 }
             });
             Boolean ok = future.get(BIOMETRIC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             return Boolean.TRUE.equals(ok);
         } catch (Exception e) {
-            Log.w(TAG, "Biometric gate failed: " + e);
+            SafeLog.w(TAG, "Biometric gate failed: " + e);
             dismissPendingPrompt(id);
             return false;
         } finally {
@@ -482,7 +504,13 @@ public final class SshAgentServer {
 
         Signature signer = Signature.getInstance("SHA256withECDSA");
         try {
-            signer.initSign(key.privateKey);
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            PrivateKey privateKey = (PrivateKey) keyStore.getKey(key.keyStoreAlias, null);
+            if (privateKey == null) {
+                throw new IOException("Android security key not found: " + key.keyStoreAlias);
+            }
+            signer.initSign(privateKey);
             signer.update(signed.toByteArray());
             byte[] ecdsaBlob = ecdsaDerToSsh(signer.sign());
 
@@ -500,7 +528,7 @@ public final class SshAgentServer {
             writeString(payload, signature.toByteArray());
             sendPayload(out, response.toByteArray());
         } catch (UserNotAuthenticatedException e) {
-            Log.w(TAG, "Fingerprint authentication required for " + key.keyStoreAlias);
+            SafeLog.w(TAG, "Fingerprint authentication required for " + key.keyStoreAlias);
             throw e;
         }
     }

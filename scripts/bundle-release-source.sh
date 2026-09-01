@@ -16,7 +16,13 @@ mkdir -p "$STAGE" "$OUTPUT_DIR"
 # history, .env files, build outputs, and release artifacts via .gitignore.
 (
     cd "$PROJECT_DIR"
-    git ls-files -z --cached --others --exclude-standard | \
+    git ls-files -z --cached --others --exclude-standard --deduplicate | \
+        while IFS= read -r -d '' path; do
+            # A working-tree release may contain staged/index entries that
+            # have just been deleted (for example, a superseded license).
+            # Preserve arbitrary filenames while omitting those absent paths.
+            [[ -e "$path" || -L "$path" ]] && printf '%s\0' "$path"
+        done | \
         tar --null --files-from=- -cf -
 ) | tar -C "$STAGE" -xf -
 
@@ -42,8 +48,9 @@ copy_source_tree "$PROJECT_DIR/ghostty" "$STAGE/corresponding-source/ghostty"
 copy_source_tree "$PROJECT_DIR/build-bash/bash-5.2.37" "$STAGE/corresponding-source/bash-5.2.37"
 copy_source_tree "$PROJECT_DIR/build-busybox/busybox-1.38.0" "$STAGE/corresponding-source/busybox-1.38.0"
 copy_source_tree "$PROJECT_DIR/build-rsync/rsync-3.5.0" "$STAGE/corresponding-source/rsync-3.5.0"
+copy_source_tree "$PROJECT_DIR/cloudflared" "$STAGE/corresponding-source/cloudflared-2026.8.2"
 copy_source_tree "$PROJECT_DIR/build-openssh/openssh-10.5p1" "$STAGE/corresponding-source/openssh-10.5p1"
-copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.7" "$STAGE/corresponding-source/openssl-3.5.7"
+copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.8" "$STAGE/corresponding-source/openssl-3.5.8"
 copy_source_tree "$PROJECT_DIR/build-mosh/zlib-1.3.1" "$STAGE/corresponding-source/zlib-1.3.1"
 copy_source_tree "$PROJECT_DIR/build-mosh/ncurses-6.5" "$STAGE/corresponding-source/ncurses-6.5"
 copy_source_tree "$PROJECT_DIR/build-mosh/protobuf-21.12" "$STAGE/corresponding-source/protobuf-21.12"

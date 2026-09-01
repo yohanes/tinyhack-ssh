@@ -123,11 +123,16 @@ public class SettingsActivity extends AppCompatActivity {
         switchStayConnected.setOnCheckedChangeListener(stayConnectedListener);
         findViewById(R.id.row_stay_connected).setOnClickListener(v -> switchStayConnected.toggle());
 
-        // Confirm URL click (pure pref toggle)
-        switchConfirmUrl.setChecked(prefs.getBoolean("confirm_url_click", false));
+        // v1 accidentally inverted this setting. Migrate every existing install
+        // to the safe behavior once, then store the literal "confirm" meaning.
+        if (!prefs.getBoolean("confirm_url_click_semantics_v2", false)) {
+            prefs.edit().putBoolean("confirm_url_click", true)
+                    .putBoolean("confirm_url_click_semantics_v2", true).apply();
+        }
+        switchConfirmUrl.setChecked(prefs.getBoolean("confirm_url_click", true));
         switchConfirmUrl.setOnCheckedChangeListener((btn, checked) -> {
             prefs.edit().putBoolean("confirm_url_click", checked).apply();
-            Toast.makeText(this, checked ? "Links will open directly" : "Link confirmation enabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, checked ? "Link confirmation enabled" : "Links will open directly", Toast.LENGTH_SHORT).show();
         });
         findViewById(R.id.row_confirm_url).setOnClickListener(v -> switchConfirmUrl.toggle());
 
@@ -139,12 +144,34 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Initialize from prefs before attaching listeners so the programmatic
         // setChecked calls below do not fire the toggle handlers
-        switchHttpDebug.setChecked(prefs.getBoolean(PREF_HTTP_DEBUG_ENABLED, false));
-        switchStorageAccess.setChecked(prefs.getBoolean(PREF_STORAGE_ACCESS_ENABLED, false));
-        switchHttpDebug.setOnCheckedChangeListener(httpDebugListener);
-        switchStorageAccess.setOnCheckedChangeListener(storageAccessListener);
-        findViewById(R.id.row_http_debug).setOnClickListener(v -> switchHttpDebug.toggle());
-        findViewById(R.id.row_storage_access).setOnClickListener(v -> switchStorageAccess.toggle());
+        switchHttpDebug.setChecked(com.tinyhack.ssh.BuildConfig.DEBUG
+                && prefs.getBoolean(PREF_HTTP_DEBUG_ENABLED, false));
+        switchStorageAccess.setChecked(com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE
+                && prefs.getBoolean(PREF_STORAGE_ACCESS_ENABLED, false));
+        if (com.tinyhack.ssh.BuildConfig.DEBUG) {
+            switchHttpDebug.setOnCheckedChangeListener(httpDebugListener);
+            findViewById(R.id.row_http_debug).setOnClickListener(v -> switchHttpDebug.toggle());
+        } else {
+            findViewById(R.id.row_http_debug).setVisibility(android.view.View.GONE);
+        }
+        if (com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            switchStorageAccess.setOnCheckedChangeListener(storageAccessListener);
+            findViewById(R.id.row_storage_access).setOnClickListener(v -> switchStorageAccess.toggle());
+        } else {
+            findViewById(R.id.row_storage_access).setVisibility(android.view.View.GONE);
+        }
+        TextView debugStorageLabel = findViewById(R.id.label_debug_storage);
+        if (com.tinyhack.ssh.BuildConfig.DEBUG
+                && com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            debugStorageLabel.setText("DEBUGGING & STORAGE");
+        } else if (com.tinyhack.ssh.BuildConfig.DEBUG) {
+            debugStorageLabel.setText("DEBUGGING");
+        } else if (com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            debugStorageLabel.setText("STORAGE");
+        } else {
+            findViewById(R.id.divider_debug_storage).setVisibility(android.view.View.GONE);
+            debugStorageLabel.setVisibility(android.view.View.GONE);
+        }
 
         Intent intent = new Intent(this, TerminalService.class);
         startService(intent);
@@ -232,6 +259,10 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void setStorageAccess(boolean enabled) {
+        if (!com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            revertSwitch(switchStorageAccess, storageAccessListener, false);
+            return;
+        }
         if (terminalService == null) {
             revertSwitch(switchStorageAccess, storageAccessListener, !enabled);
             Toast.makeText(this, "Service not connected", Toast.LENGTH_SHORT).show();

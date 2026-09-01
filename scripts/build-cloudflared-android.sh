@@ -15,6 +15,18 @@ else
 fi
 TOOLCHAIN="$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
+version_at_least() {
+    local actual=$1
+    local minimum=$2
+    [[ "$(printf '%s\n%s\n' "$minimum" "$actual" | sort -V | head -n1)" == "$minimum" ]]
+}
+
+GO_VERSION=$(go env GOVERSION | sed 's/^go//')
+if ! version_at_least "$GO_VERSION" "1.26.7"; then
+    echo "Go 1.26.7 or newer is required; found Go $GO_VERSION" >&2
+    exit 1
+fi
+
 apply_patch_once() {
     local patch_file=$1
     if [[ ! -f "$patch_file" ]]; then
@@ -39,6 +51,29 @@ apply_patch_once() {
     if [[ -f "$PROJECT_DIR/patches/cloudflared-android.patch" ]]; then
         apply_patch_once "$PROJECT_DIR/patches/cloudflared-android.patch"
     fi
+    if [[ -f "$PROJECT_DIR/patches/cloudflared-security-dependencies.patch" ]]; then
+        apply_patch_once "$PROJECT_DIR/patches/cloudflared-security-dependencies.patch"
+    fi
+
+    # The build uses vendored modules. Refresh them when the pinned security
+    # versions have changed, then fail closed if an older version is present.
+    if ! grep -q '^# golang.org/x/crypto v0.55.0$' vendor/modules.txt \
+            || ! grep -q '^# github.com/klauspost/compress v1.18.7$' vendor/modules.txt; then
+        echo "Refreshing cloudflared vendored dependencies..."
+        GOFLAGS=-mod=mod go mod tidy
+        go mod vendor
+    fi
+
+    CRYPTO_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' golang.org/x/crypto)
+    COMPRESS_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' github.com/klauspost/compress)
+    if ! version_at_least "${CRYPTO_VERSION#v}" "0.55.0"; then
+        echo "golang.org/x/crypto v0.55.0 or newer is required; found $CRYPTO_VERSION" >&2
+        exit 1
+    fi
+    if ! version_at_least "${COMPRESS_VERSION#v}" "1.18.7"; then
+        echo "github.com/klauspost/compress v1.18.7 or newer is required; found $COMPRESS_VERSION" >&2
+        exit 1
+    fi
 )
 
 # Ensure output dir exists
@@ -54,7 +89,7 @@ VERSION_FLAGS="-X main.Version=$VERSION -X main.BuildTime=$DATE"
 GOOS=${GOOS:-android}
 GOARCH=arm64
 
-echo "Building cloudflared $VERSION for $GOOS/$GOARCH (CGO_ENABLED=1 for Android DNS)..."
+echo "Building cloudflared $VERSION with Go $GO_VERSION for $GOOS/$GOARCH (CGO_ENABLED=1 for Android DNS)..."
 
 (
     cd "$CLOUDFLARED_DIR"

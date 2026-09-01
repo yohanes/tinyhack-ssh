@@ -1,7 +1,7 @@
 package com.tinyhack.ssh.util;
 
 import android.content.Context;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import androidx.annotation.NonNull;
 import androidx.biometric.BiometricManager;
@@ -36,19 +36,19 @@ public class BiometricHelper {
         BiometricPrompt prompt = new BiometricPrompt(activity, executor, new BiometricPrompt.AuthenticationCallback() {
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                Log.w(TAG, "Biometric error " + errorCode + ": " + errString);
+                SafeLog.w(TAG, "Biometric error " + errorCode + ": " + errString);
                 callback.onError(errString.toString());
             }
 
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                Log.i(TAG, "Biometric success");
+                SafeLog.i(TAG, "Biometric success");
                 callback.onSuccess();
             }
 
             @Override
             public void onAuthenticationFailed() {
-                Log.w(TAG, "Biometric failed");
+                SafeLog.w(TAG, "Biometric failed");
                 callback.onFailed();
             }
         });

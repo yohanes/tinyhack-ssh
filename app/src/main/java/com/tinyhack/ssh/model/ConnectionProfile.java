@@ -4,6 +4,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.UUID;
+import java.util.Locale;
 
 /**
  * Represents a reusable connection profile for creating terminal sessions.
@@ -18,7 +19,7 @@ public class ConnectionProfile {
         public static Type fromString(String s) {
             if (s == null) return LOCAL;
             try {
-                return Type.valueOf(s.toUpperCase());
+                return Type.valueOf(s.toUpperCase(Locale.ROOT));
             } catch (Exception e) {
                 return LOCAL;
             }
@@ -33,7 +34,7 @@ public class ConnectionProfile {
         public static AuthType fromString(String s) {
             if (s == null) return NONE;
             try {
-                return AuthType.valueOf(s.toUpperCase());
+                return AuthType.valueOf(s.toUpperCase(Locale.ROOT));
             } catch (Exception e) {
                 return NONE;
             }
@@ -59,6 +60,11 @@ public class ConnectionProfile {
     private String keyName; // SshKeyManager key name
     private String password; // in memory only; persisted encrypted (ProfileCrypto)
     private String sshArgs; // extra ssh args
+    private boolean agentForwardingEnabled = false;
+
+    // Terminal capabilities are opt-in because remote hosts control terminal output.
+    private boolean kittyGraphicsEnabled = false;
+    private boolean osc52ClipboardEnabled = false;
 
     // Cloudflare Access (cloudflared) fields - for SSH via Access tunnel
     private boolean cloudflaredEnabled = false;
@@ -126,6 +132,34 @@ public class ConnectionProfile {
         if (!isValidHost(h)) return fieldLabel + " contains invalid characters (spaces and symbols are not allowed; only letters, digits, '.', '-', '_', and ':' for IPv6)";
         return null;
     }
+
+    public static String destinationValidationError(String destination) {
+        if (destination == null || destination.trim().isEmpty()) return null;
+        String value = destination.trim();
+        String host;
+        String portText;
+        if (value.startsWith("[")) {
+            int end = value.indexOf("]:");
+            if (end <= 1) return "Destination must be host:port or [IPv6]:port";
+            host = value.substring(1, end);
+            portText = value.substring(end + 2);
+        } else {
+            int colon = value.lastIndexOf(':');
+            if (colon <= 0 || colon == value.length() - 1) {
+                return "Destination must be host:port";
+            }
+            host = value.substring(0, colon);
+            portText = value.substring(colon + 1);
+        }
+        if (!isValidHost(host)) return "Destination host contains invalid characters";
+        try {
+            int parsedPort = Integer.parseInt(portText);
+            if (parsedPort < 1 || parsedPort > 65535) return "Destination port must be between 1 and 65535";
+        } catch (NumberFormatException e) {
+            return "Destination port must be a number";
+        }
+        return null;
+    }
     public int getPort() { return port; }
     public void setPort(int port) { this.port = port; }
     public String getUsername() { return username; }
@@ -138,6 +172,12 @@ public class ConnectionProfile {
     public void setPassword(String password) { this.password = password; }
     public String getSshArgs() { return sshArgs; }
     public void setSshArgs(String sshArgs) { this.sshArgs = sshArgs; }
+    public boolean isAgentForwardingEnabled() { return agentForwardingEnabled; }
+    public void setAgentForwardingEnabled(boolean enabled) { this.agentForwardingEnabled = enabled; }
+    public boolean isKittyGraphicsEnabled() { return kittyGraphicsEnabled; }
+    public void setKittyGraphicsEnabled(boolean enabled) { this.kittyGraphicsEnabled = enabled; }
+    public boolean isOsc52ClipboardEnabled() { return osc52ClipboardEnabled; }
+    public void setOsc52ClipboardEnabled(boolean enabled) { this.osc52ClipboardEnabled = enabled; }
     public boolean isCloudflaredEnabled() { return cloudflaredEnabled; }
     public void setCloudflaredEnabled(boolean enabled) { this.cloudflaredEnabled = enabled; }
     public String getCloudflaredHostname() { return cloudflaredHostname; }
@@ -200,17 +240,17 @@ public class ConnectionProfile {
         String enc = ProfileCrypto.encrypt(password);
         o.put("passwordEnc", enc != null ? enc : "");
         o.put("sshArgs", sshArgs != null ? sshArgs : "");
+        o.put("agentForwardingEnabled", agentForwardingEnabled);
+        o.put("kittyGraphicsEnabled", kittyGraphicsEnabled);
+        o.put("osc52ClipboardEnabled", osc52ClipboardEnabled);
         o.put("cloudflaredEnabled", cloudflaredEnabled);
         o.put("cloudflaredHostname", cloudflaredHostname != null ? cloudflaredHostname : "");
         o.put("cloudflaredServiceTokenId", cloudflaredServiceTokenId != null ? cloudflaredServiceTokenId : "");
         String encCf = ProfileCrypto.encrypt(cloudflaredServiceTokenSecret);
         o.put("cloudflaredServiceTokenSecretEnc", encCf != null ? encCf : "");
-        // legacy plaintext fallback key
-        if (cloudflaredServiceTokenSecret != null && (encCf == null || encCf.isEmpty())) {
-            o.put("cloudflaredServiceTokenSecret", cloudflaredServiceTokenSecret);
-        } else {
-            o.put("cloudflaredServiceTokenSecret", "");
-        }
+        // Keep the legacy key only as an empty migration marker. Encryption
+        // failure must fail closed and never put the secret in profile JSON.
+        o.put("cloudflaredServiceTokenSecret", "");
         o.put("cloudflaredDestination", cloudflaredDestination != null ? cloudflaredDestination : "");
         o.put("color", color);
         return o;
@@ -247,6 +287,9 @@ public class ConnectionProfile {
         }
         s = o.optString("sshArgs", "");
         p.sshArgs = s.isEmpty() ? null : s;
+        p.agentForwardingEnabled = o.optBoolean("agentForwardingEnabled", false);
+        p.kittyGraphicsEnabled = o.optBoolean("kittyGraphicsEnabled", false);
+        p.osc52ClipboardEnabled = o.optBoolean("osc52ClipboardEnabled", false);
         p.cloudflaredEnabled = o.optBoolean("cloudflaredEnabled", false);
         s = o.optString("cloudflaredHostname", "");
         p.cloudflaredHostname = s.isEmpty() ? null : s;

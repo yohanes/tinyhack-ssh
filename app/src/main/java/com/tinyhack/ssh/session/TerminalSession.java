@@ -2,7 +2,7 @@ package com.tinyhack.ssh.session;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import com.tinyhack.ssh.terminal.NativeBridge;
 import com.tinyhack.ssh.terminal.RenderFrame;
@@ -41,17 +41,26 @@ public class TerminalSession implements SessionCallback {
 
     // Profile & session metadata for multi-session UI
     private final String profileId;
+    private final boolean kittyGraphicsEnabled;
+    private final boolean osc52ClipboardEnabled;
     private String sessionName;
     private final long createdAt;
     private int exitCode = -1;
 
     public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight) {
-        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, null, null);
+        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, null, null, false, false);
     }
 
     public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight, String profileId, String sessionName) {
+        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName, false, false);
+    }
+
+    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
+                           String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled) {
         this.id = UUID.randomUUID().toString();
         this.profileId = profileId;
+        this.kittyGraphicsEnabled = kittyGraphicsEnabled;
+        this.osc52ClipboardEnabled = osc52ClipboardEnabled;
         this.sessionName = sessionName;
         this.createdAt = System.currentTimeMillis();
         this.rows = Math.max(1, rows);
@@ -61,7 +70,8 @@ public class TerminalSession implements SessionCallback {
         this.renderFrame.ensureCapacity(this.cols, this.rows);
 
         this.sessionPtr = NativeBridge.nativeCreateSession(
-            cmd, cwd, argv, envp, this.rows, this.cols, this.cellWidth, this.cellHeight, this
+            cmd, cwd, argv, envp, this.rows, this.cols, this.cellWidth, this.cellHeight,
+            kittyGraphicsEnabled, this
         );
 
         if (this.sessionPtr != 0) {
@@ -377,6 +387,8 @@ public class TerminalSession implements SessionCallback {
     public int getRows() { return rows; }
     public int getCols() { return cols; }
     public String getProfileId() { return profileId; }
+    public boolean isKittyGraphicsEnabled() { return kittyGraphicsEnabled; }
+    public boolean isOsc52ClipboardEnabled() { return osc52ClipboardEnabled; }
     public String getSessionName() { return sessionName; }
     public long getCreatedAt() { return createdAt; }
     public int getExitCode() { return exitCode; }

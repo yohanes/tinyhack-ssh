@@ -23,9 +23,9 @@
 #include <ghostty/vt.h>
 
 #define LOG_TAG "GhosttyJNI"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) ((void)0)
+#define LOGE(...) ((void)0)
+#define LOGD(...) ((void)0)
 
 static JavaVM* g_jvm = nullptr;
 static jclass g_desktopNotifyHelperCls = nullptr;
@@ -115,7 +115,6 @@ static void* pty_read_loop(void* arg) {
         }
         session->last_pty_activity_ms.store(monotonic_millis());
 
-        LOGD("pty_read_loop: read %zd bytes: '%.*s'", bytes_read, (int)(bytes_read > 64 ? 64 : bytes_read), buffer);
         {
             std::lock_guard<std::mutex> lock(session->session_mutex);
             if (session->terminal && !session->is_closed.load()) {
@@ -221,7 +220,6 @@ static void on_desktop_notification(GhosttyTerminal terminal, void* userdata, co
     if (notification->body.ptr && notification->body.len > 0) {
         body.assign((const char*)notification->body.ptr, notification->body.len);
     }
-    LOGI("Desktop notification: title='%s' body='%s'", title.c_str(), body.c_str());
     JNIEnv* env = get_jni_env();
     if (!env) return;
     jclass helperCls = g_desktopNotifyHelperCls ? (jclass)env->NewLocalRef(g_desktopNotifyHelperCls) : nullptr;
@@ -289,6 +287,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     jobjectArray jargv, jobjectArray jenvp,
     jint rows, jint cols,
     jint cell_width, jint cell_height,
+    jboolean jkitty_graphics_enabled,
     jobject jcallback)
 {
     (void)clazz;
@@ -311,14 +310,16 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
         return 0;
     }
 
-    // The VT library keeps Kitty graphics disabled until the embedder gives
-    // it an explicit storage budget. terminal-browser first sends a tiny
-    // direct-RGB probe and then streams full-screen RGBA frames, so reserve
-    // enough for several frames while still keeping memory use bounded.
-    uint64_t kitty_image_storage_limit = 128ULL * 1024ULL * 1024ULL;
-    ghostty_terminal_set(
-        session->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_STORAGE_LIMIT,
-        &kitty_image_storage_limit);
+    const bool kitty_graphics_enabled = jkitty_graphics_enabled == JNI_TRUE;
+    // A zero budget leaves Kitty graphics disabled in the VT core. When the
+    // profile explicitly enables it, use a modest per-session budget to keep
+    // hostile terminal output from exhausting the app process.
+    if (kitty_graphics_enabled) {
+        uint64_t kitty_image_storage_limit = 32ULL * 1024ULL * 1024ULL;
+        ghostty_terminal_set(
+            session->terminal, GHOSTTY_TERMINAL_OPT_KITTY_IMAGE_STORAGE_LIMIT,
+            &kitty_image_storage_limit);
+    }
 
     // Configure terminal effects & callbacks
     ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_USERDATA, session);
@@ -429,11 +430,10 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
             }
         }
     }
-    // Default environment variables — use xterm-kitty for widest chafa compatibility
-    // (older chafa on remotes does not know xterm-ghostty; kitty is long-supported).
-    // We also advertise ghostty via TERM_PROGRAM/GHOSTTY_BIN_DIR for newer chafa
-    // and keep TERMINFO pointing at our bundled xterm-ghostty + xterm-kitty entries.
-    envp_list.push_back(strdup("TERM=xterm-kitty"));
+    // Only advertise the Kitty protocol for profiles that opted into its
+    // memory and remote-output surface. Standard profiles use ubiquitous
+    // xterm-256color capabilities.
+    envp_list.push_back(strdup(kitty_graphics_enabled ? "TERM=xterm-kitty" : "TERM=xterm-256color"));
     envp_list.push_back(strdup("TERM_PROGRAM=ghostty"));
     envp_list.push_back(strdup("GHOSTTY_BIN_DIR=/data/data/com.tinyhack.ssh/files/usr/bin"));
     envp_list.push_back(strdup("TERMINFO=/data/data/com.tinyhack.ssh/files/usr/share/terminfo"));
@@ -542,6 +542,8 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWritePty(
     (void)clazz;
     auto* session = reinterpret_cast<NativeSession*>(sessionPtr);
     if (!session || session->is_closed.load() || session->ptm_fd < 0 || !jdata || length <= 0) return;
+    const jsize array_length = env->GetArrayLength(jdata);
+    if (offset < 0 || length > array_length || offset > array_length - length) return;
 
     jbyte* bytes = env->GetByteArrayElements(jdata, nullptr);
     if (bytes) {
@@ -558,10 +560,11 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeFeedVt(
     (void)clazz;
     auto* session = reinterpret_cast<NativeSession*>(sessionPtr);
     if (!session || session->is_closed.load() || !session->terminal || !jdata || length <= 0) return;
+    const jsize array_length = env->GetArrayLength(jdata);
+    if (offset < 0 || length > array_length || offset > array_length - length) return;
 
     jbyte* bytes = env->GetByteArrayElements(jdata, nullptr);
     if (bytes) {
-        LOGD("nativeFeedVt: feeding %d bytes: '%.*s'", length, (int)(length > 64 ? 64 : length), bytes + offset);
         std::lock_guard<std::mutex> lock(session->session_mutex);
         ghostty_terminal_vt_write(session->terminal, reinterpret_cast<const uint8_t*>(bytes + offset), length);
         env->ReleaseByteArrayElements(jdata, bytes, JNI_ABORT);
@@ -644,7 +647,6 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWriteKey(
     const char* utf8_text = jtext ? env->GetStringUTFChars(jtext, nullptr) : nullptr;
     size_t utf8_len = utf8_text ? strlen(utf8_text) : 0;
 
-    LOGD("nativeWriteKey: key=%d action=%d mods=%d text='%s'", ghosttyKey, action, mods, utf8_text ? utf8_text : "");
 
     std::lock_guard<std::mutex> lock(session->session_mutex);
     if (ghosttyKey == GHOSTTY_KEY_BACKSPACE && mods == 0) {
@@ -821,6 +823,13 @@ static KittyBitmapCache* bitmap_cache_for(
     JNIEnv* env, NativeSession* session, uint32_t image_id,
     uint32_t width, uint32_t height)
 {
+    constexpr uint64_t MAX_BITMAP_BYTES = 16ULL * 1024ULL * 1024ULL;
+    constexpr uint32_t MAX_BITMAP_DIMENSION = 8192;
+    const uint64_t bitmap_bytes = static_cast<uint64_t>(width) * height * 4ULL;
+    if (width == 0 || height == 0 || width > MAX_BITMAP_DIMENSION
+            || height > MAX_BITMAP_DIMENSION || bitmap_bytes > MAX_BITMAP_BYTES) {
+        return nullptr;
+    }
     KittyBitmapCache* cache = nullptr;
     for (auto& candidate : session->kitty_bitmap_cache) {
         if (candidate.image_id == image_id) {
@@ -829,11 +838,9 @@ static KittyBitmapCache* bitmap_cache_for(
         }
     }
     if (!cache) {
-        // The Java frame supports at most 16 simultaneous placements. Keep the
-        // native bitmap cache to the same bound so changing image IDs cannot
-        // grow memory without limit, while preserving bitmaps across streamed
-        // retransmissions of the same ID (the common full-screen UI case).
-        if (session->kitty_bitmap_cache.size() >= 16) {
+        // Two bounded bitmaps plus the 32 MiB VT store cap total Kitty memory
+        // without allowing a stream of changing image IDs to retain old frames.
+        if (session->kitty_bitmap_cache.size() >= 2) {
             if (session->kitty_bitmap_cache.front().bitmap) {
                 env->DeleteGlobalRef(session->kitty_bitmap_cache.front().bitmap);
             }
@@ -1967,9 +1974,6 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetLastCommandOutput(
         if (!line.empty()) {
             if (!result.empty()) {
                 // Check if previous row was wrapped: if row is wrap continuation, don't add newline
-                bool isWrapContinuation = false;
-                GhosttyRow prevRowCheck;
-                // We already have row, check WRAP_CONTINUATION
                 bool isCont = false;
                 ghostty_row_get(row, GHOSTTY_ROW_DATA_WRAP_CONTINUATION, &isCont);
                 if (!isCont) result.push_back('\n');

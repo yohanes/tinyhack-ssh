@@ -3,10 +3,9 @@ package com.tinyhack.ssh.model;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import java.security.KeyStore;
-import java.security.SecureRandom;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -47,7 +46,7 @@ final class ProfileCrypto {
                     + Base64.encodeToString(iv, Base64.NO_WRAP)
                     + ":" + Base64.encodeToString(ct, Base64.NO_WRAP);
         } catch (Exception e) {
-            Log.e(TAG, "encrypt failed; storing no password", e);
+            SafeLog.e(TAG, "encrypt failed; storing no password", e);
             return null;
         }
     }
@@ -64,7 +63,7 @@ final class ProfileCrypto {
             cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), new GCMParameterSpec(TAG_BITS, iv));
             return new String(cipher.doFinal(ct), java.nio.charset.StandardCharsets.UTF_8);
         } catch (Exception e) {
-            Log.e(TAG, "decrypt failed", e);
+            SafeLog.e(TAG, "decrypt failed", e);
             return null;
         }
     }
@@ -86,9 +85,6 @@ final class ProfileCrypto {
                 .setKeySize(256)
                 .setRandomizedEncryptionRequired(true)
                 .build());
-        SecretKey key = generator.generateKey();
-        // Touch the RNG so key generation isn't the only consumer
-        new SecureRandom().nextBytes(new byte[8]);
-        return key;
+        return generator.generateKey();
     }
 }

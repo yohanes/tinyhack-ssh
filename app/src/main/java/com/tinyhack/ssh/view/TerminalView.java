@@ -853,17 +853,25 @@ public class TerminalView extends View implements TerminalSession.Listener {
         int row = clampRow(y);
         String url = session.getHyperlinkUri(col, row);
         if (url == null || url.isEmpty()) return false;
-        android.util.Log.i(TAG, "Hyperlink tapped at " + col + "," + row + ": " + url);
 
-        boolean directOpen = false;
+        android.net.Uri uri = android.net.Uri.parse(url);
+        String scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("https")
+                || scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("mailto"))) {
+            Toast.makeText(getContext(), "Blocked unsupported link type", Toast.LENGTH_SHORT).show();
+            return true;
+        }
+
+        boolean confirmOpen = true;
         try {
-            directOpen = getContext().getSharedPreferences("tinyhack_ssh_prefs", Context.MODE_PRIVATE)
-                .getBoolean("confirm_url_click", false);
+            android.content.SharedPreferences linkPrefs = getContext().getSharedPreferences(
+                    "tinyhack_ssh_prefs", Context.MODE_PRIVATE);
+            confirmOpen = !linkPrefs.getBoolean("confirm_url_click_semantics_v2", false)
+                    || linkPrefs.getBoolean("confirm_url_click", true);
         } catch (Exception ignored) {}
-        // per spec: checked -> directly open, unchecked -> show dialog with Open/Copy/Cancel
-        if (directOpen) {
+        if (!confirmOpen) {
             try {
-                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, uri);
                 intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(intent);
                 Toast.makeText(getContext(), url, Toast.LENGTH_SHORT).show();
@@ -884,7 +892,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
                 .setMessage(displayUrl)
                 .setPositiveButton("Open", (d, w) -> {
                     try {
-                        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+                        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, uri);
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
                         getContext().startActivity(intent);
                     } catch (Exception e) {
@@ -901,14 +909,8 @@ public class TerminalView extends View implements TerminalSession.Listener {
                 .setNegativeButton("Cancel", null)
                 .show();
         } catch (Exception e) {
-            // Fallback: open directly if dialog fails (wrong context)
-            try {
-                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
-                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(intent);
-            } catch (Exception ex) {
-                Toast.makeText(getContext(), "Cannot open link: " + url, Toast.LENGTH_SHORT).show();
-            }
+            // A missing/invalid UI context must fail closed, never bypass the confirmation.
+            Toast.makeText(getContext(), "Cannot show link confirmation", Toast.LENGTH_SHORT).show();
         }
         return true;
     }
@@ -2278,8 +2280,9 @@ public class TerminalView extends View implements TerminalSession.Listener {
 
     @Override
     public void onClipboardWrite(String text) {
+        if (session == null || !session.isOsc52ClipboardEnabled()) return;
         ClipboardManager cm = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null && text != null) {
+        if (cm != null && text != null && text.length() <= 1024 * 1024) {
             cm.setPrimaryClip(ClipData.newPlainText("Tinyhack SSH", text));
         }
     }

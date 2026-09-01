@@ -11,7 +11,7 @@ import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -63,19 +63,25 @@ public class TerminalService extends Service {
         com.tinyhack.ssh.util.DesktopNotificationHelper.init(this);
         createNotificationChannel();
         com.tinyhack.ssh.util.BootstrapInstaller.installIfNeeded(this);
-        debugHttpServer = new com.tinyhack.ssh.debug.DebugHttpServer(this, 8080);
-        // HTTP debug server is opt-in (default off)
-        if (isDebugServerEnabled()) {
-            debugHttpServer.start();
+        // Development automation must not be reachable in any release build,
+        // even if an old preference is restored during a local upgrade.
+        if (com.tinyhack.ssh.BuildConfig.DEBUG) {
+            debugHttpServer = new com.tinyhack.ssh.debug.DebugHttpServer(this, 8080);
+            if (isDebugServerEnabled()) debugHttpServer.start();
+        } else {
+            prefs().edit().putBoolean(KEY_HTTP_DEBUG_ENABLED, false).apply();
         }
         // Re-establish ~/storage if storage access was previously enabled
-        if (isStorageAccessEnabled()) {
+        if (com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE && isStorageAccessEnabled()) {
             if (hasManageStoragePermission()) {
                 String warning = setupStorageSymlink();
-                if (warning != null) Log.w(TAG, warning);
+                if (warning != null) SafeLog.w(TAG, warning);
             } else {
-                Log.w(TAG, "Storage access enabled but MANAGE_EXTERNAL_STORAGE not granted");
+                SafeLog.w(TAG, "Storage access enabled but MANAGE_EXTERNAL_STORAGE not granted");
             }
+        } else if (!com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            prefs().edit().putBoolean(KEY_STORAGE_ACCESS_ENABLED, false).apply();
+            removeStorageSymlink();
         }
         // Auto-start SSH agent if enabled
         try {
@@ -87,7 +93,7 @@ public class TerminalService extends Service {
                 }, "SshAgentAutoStart").start();
             }
         } catch (Exception e) {
-            Log.w(TAG, "Failed to auto-start ssh-agent", e);
+            SafeLog.w(TAG, "Failed to auto-start ssh-agent", e);
         }
     }
 
@@ -203,7 +209,8 @@ public class TerminalService extends Service {
 
     /** HTTP debug server is opt-in; disabled by default. */
     public boolean isDebugServerEnabled() {
-        return prefs().getBoolean(KEY_HTTP_DEBUG_ENABLED, false);
+        return com.tinyhack.ssh.BuildConfig.DEBUG
+                && prefs().getBoolean(KEY_HTTP_DEBUG_ENABLED, false);
     }
 
     public boolean isDebugServerRunning() {
@@ -211,8 +218,10 @@ public class TerminalService extends Service {
     }
 
     public void setDebugServerEnabled(boolean enabled) {
-        prefs().edit().putBoolean(KEY_HTTP_DEBUG_ENABLED, enabled).apply();
-        if (enabled) {
+        boolean allowed = enabled && com.tinyhack.ssh.BuildConfig.DEBUG;
+        prefs().edit().putBoolean(KEY_HTTP_DEBUG_ENABLED, allowed).apply();
+        if (debugHttpServer == null) return;
+        if (allowed) {
             debugHttpServer.start();
         } else {
             debugHttpServer.stop();
@@ -221,11 +230,13 @@ public class TerminalService extends Service {
 
     /** Storage access (rsync of phone files) is opt-in; disabled by default. */
     public boolean isStorageAccessEnabled() {
-        return prefs().getBoolean(KEY_STORAGE_ACCESS_ENABLED, false);
+        return com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE
+                && prefs().getBoolean(KEY_STORAGE_ACCESS_ENABLED, false);
     }
 
     public void setStorageAccessEnabled(boolean enabled) {
-        prefs().edit().putBoolean(KEY_STORAGE_ACCESS_ENABLED, enabled).apply();
+        boolean allowed = enabled && com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE;
+        prefs().edit().putBoolean(KEY_STORAGE_ACCESS_ENABLED, allowed).apply();
     }
 
     /**
@@ -255,7 +266,7 @@ public class TerminalService extends Service {
                 startForeground(NOTIFICATION_ID, createNotification());
             }
         } catch (Exception e) {
-            Log.w(TAG, "startForeground error", e);
+            SafeLog.w(TAG, "startForeground error", e);
         }
     }
 
@@ -274,7 +285,9 @@ public class TerminalService extends Service {
     }
 
     public boolean hasManageStoragePermission() {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.R || android.os.Environment.isExternalStorageManager();
+        return com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE
+                && (Build.VERSION.SDK_INT < Build.VERSION_CODES.R
+                || android.os.Environment.isExternalStorageManager());
     }
 
     /**
@@ -283,6 +296,9 @@ public class TerminalService extends Service {
      * warning/error message. Never touches ~/storage if it exists as a real file/dir.
      */
     public String setupStorageSymlink() {
+        if (!com.tinyhack.ssh.BuildConfig.STORAGE_ACCESS_AVAILABLE) {
+            return "Storage Access is not included in this distribution";
+        }
         java.nio.file.Path link = new java.io.File(getFilesDir(), "home/storage").toPath();
         try {
             if (java.nio.file.Files.isSymbolicLink(link)) {
@@ -298,7 +314,7 @@ public class TerminalService extends Service {
             android.system.Os.symlink(STORAGE_TARGET, link.toString());
             return null;
         } catch (Exception e) {
-            Log.w(TAG, "setupStorageSymlink failed", e);
+            SafeLog.w(TAG, "setupStorageSymlink failed", e);
             return "Failed to create ~/storage symlink: " + e.getMessage();
         }
     }
@@ -332,6 +348,11 @@ public class TerminalService extends Service {
     }
 
     private synchronized TerminalSession createSessionInternal(String cmd, String cwd, String[] argv, String[] envp, String profileId, String sessionName) {
+        return createSessionInternal(cmd, cwd, argv, envp, profileId, sessionName, false, false);
+    }
+
+    private synchronized TerminalSession createSessionInternal(String cmd, String cwd, String[] argv, String[] envp,
+            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled) {
         // Inject SSH agent env if running
         envp = injectAgentEnv(envp);
         String homeDir = getFilesDir().getAbsolutePath() + "/home";
@@ -355,14 +376,15 @@ public class TerminalService extends Service {
             }
         }
 
-        TerminalSession session = new TerminalSession(command, workDir, arguments, envp, 24, 80, 10, 20, profileId, sessionName);
+        TerminalSession session = new TerminalSession(command, workDir, arguments, envp, 24, 80, 10, 20,
+                profileId, sessionName, kittyGraphicsEnabled, osc52ClipboardEnabled);
         sessions.add(session);
         currentSessionIndex = sessions.size() - 1;
 
         try {
             startForegroundIfNeeded();
         } catch (Exception e) {
-            Log.w(TAG, "startForeground error", e);
+            SafeLog.w(TAG, "startForeground error", e);
         }
 
         notifySessionsChanged();
@@ -383,15 +405,21 @@ public class TerminalService extends Service {
         if (profile.getType() == ConnectionProfile.Type.SSH
                 || profile.getType() == ConnectionProfile.Type.MOSH) {
             boolean isMosh = profile.getType() == ConnectionProfile.Type.MOSH;
+            if (isMosh && profile.isCloudflaredEnabled()) {
+                File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
+                String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
+                return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
+                        "printf '%s\\n\\n' 'Cannot connect: Cloudflare Access is supported for SSH profiles only because Mosh requires a direct UDP path.'; exec sh"},
+                        null, profileId, sessionName);
+            }
             String rawHost = profile.getHost() != null ? profile.getHost().trim() : "";
             if (!rawHost.isEmpty() && !ConnectionProfile.isValidHost(rawHost)) {
                 File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
                 String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
-                String msg = ("Cannot connect: profile '" + profile.getName() + "' has an invalid host '" + rawHost + "'.")
-                        .replace("\"", "'");
+                String msg = "Cannot connect: profile '" + profile.getName() + "' has an invalid host '" + rawHost + "'.";
                 return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
-                        "echo \"" + msg + "\"; echo 'Host names cannot contain spaces, @, or other special characters.'; echo; exec sh"},
-                        null, profileId, sessionName);
+                        "printf '%s\\n' \"$1\"; printf '%s\\n\\n' 'Host names cannot contain spaces, @, or other special characters.'; exec sh",
+                        "sh", msg}, null, profileId, sessionName);
             }
             // Build SSH command
             File sshBin = new File(getApplicationInfo().nativeLibraryDir, "libssh.so");
@@ -415,7 +443,7 @@ public class TerminalService extends Service {
                             agent.addKey(keyFile.getAbsolutePath(), null);
                         }
                     } catch (Exception e) {
-                        Log.w(TAG, "Cannot load security key into agent", e);
+                        SafeLog.w(TAG, "Cannot load security key into agent", e);
                     }
                 } else if (keyFile.exists()) {
                     identityPath = keyFile.getAbsolutePath();
@@ -426,7 +454,7 @@ public class TerminalService extends Service {
             }
 
             if (isMosh) {
-                // mosh <launcher> [--ssh=ssh -i KEY -o ForwardAgent=yes] [--ssh-port=N] [extra mosh args] user@host
+                // mosh <launcher> [--ssh=ssh -i KEY -o ForwardAgent=no] [--ssh-port=N] [extra mosh args] user@host
                 File moshBin = new File(getApplicationInfo().nativeLibraryDir, "libmosh.so");
                 if (!moshBin.exists()) {
                     moshBin = new File(getFilesDir(), "usr/bin/mosh");
@@ -437,9 +465,10 @@ public class TerminalService extends Service {
                 args.add("mosh");
 
                 StringBuilder sshCmd = new StringBuilder(sshPath);
-                sshCmd.append(" -o ForwardAgent=yes");
+                sshCmd.append(" -o ForwardAgent=")
+                        .append(profile.isAgentForwardingEnabled() ? "yes" : "no");
                 if (identityPath != null) {
-                    sshCmd.append(" -i ").append(identityPath);
+                    sshCmd.append(" -i ").append(shellQuote(identityPath));
                 }
                 args.add("--ssh=" + sshCmd);
 
@@ -463,14 +492,16 @@ public class TerminalService extends Service {
                 argv = args.toArray(new String[0]);
                 workDir = homeDir;
                 envp = null;
-                return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName);
+                return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName,
+                        profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled());
             }
 
             cmd = sshPath;
 
             java.util.ArrayList<String> args = new java.util.ArrayList<>();
+            String cloudflaredTokenIdForEnv = null;
+            String cloudflaredTokenSecretForEnv = null;
             args.add("ssh");
-            // Ensure known_hosts handling - add StrictHostKeyChecking=no for first connect? But respect profile
             // Add identity file if key specified
             if (identityPath != null) {
                 args.add("-i");
@@ -480,12 +511,11 @@ public class TerminalService extends Service {
                 args.add("-p");
                 args.add(String.valueOf(profile.getPort()));
             }
-            // Enable agent forwarding by default unless the profile opts out via sshArgs
             String sshArgsStr = profile.getSshArgs();
-            if (sshArgsStr == null || !sshArgsStr.contains("ForwardAgent")) {
-                args.add("-o");
-                args.add("ForwardAgent=yes");
-            }
+            // Always set an explicit safe value; OpenSSH uses the first value
+            // obtained, so extra args cannot silently reverse this profile option.
+            args.add("-o");
+            args.add("ForwardAgent=" + (profile.isAgentForwardingEnabled() ? "yes" : "no"));
             // Cloudflare Access tunnel (cloudflared ProxyCommand)
             if (profile.isCloudflaredEnabled()) {
                 String cfHost = profile.getCloudflaredHostname();
@@ -495,6 +525,16 @@ public class TerminalService extends Service {
                     cfHost = cfHost.trim();
                 }
                 if (!cfHost.isEmpty()) {
+                    String cfHostError = ConnectionProfile.hostValidationError(cfHost, "Cloudflared hostname");
+                    String destinationError = ConnectionProfile.destinationValidationError(profile.getCloudflaredDestination());
+                    if (cfHostError != null || destinationError != null) {
+                        String message = cfHostError != null ? cfHostError : destinationError;
+                        File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
+                        String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
+                        return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
+                                "printf 'Cannot connect: %s\\n\\n' \"$1\"; exec sh", "sh", message},
+                                null, profileId, sessionName);
+                    }
                     boolean hasProxy = sshArgsStr != null && sshArgsStr.contains("ProxyCommand");
                     if (!hasProxy) {
                         String cfPath;
@@ -504,24 +544,30 @@ public class TerminalService extends Service {
                         } else {
                             cfPath = new File(getFilesDir(), "usr/bin/cloudflared").getAbsolutePath();
                         }
+                        String tokenId = profile.getCloudflaredServiceTokenId();
+                        String tokenSecret = profile.getCloudflaredServiceTokenSecret();
+                        boolean hasTokenId = tokenId != null && !tokenId.trim().isEmpty();
+                        boolean hasTokenSecret = tokenSecret != null && !tokenSecret.isEmpty();
+                        if (hasTokenId != hasTokenSecret) {
+                            File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
+                            String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
+                            return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
+                                    "printf '%s\\n\\n' 'Cannot connect: Cloudflare service token ID and secret must both be set.'; exec sh"},
+                                    null, profileId, sessionName);
+                        }
+                        if (hasTokenId) {
+                            // cloudflared inherits these from ssh. Supplying the
+                            // values in envp keeps them out of both ssh's and
+                            // cloudflared's process arguments.
+                            cloudflaredTokenIdForEnv = tokenId.trim();
+                            cloudflaredTokenSecretForEnv = tokenSecret;
+                        }
                         StringBuilder proxy = new StringBuilder();
-                        proxy.append(cfPath).append(" access ssh --hostname ").append(cfHost);
+                        proxy.append(shellQuoteForProxy(cfPath)).append(" access ssh --hostname ")
+                                .append(shellQuoteForProxy(cfHost));
                         String dest = profile.getCloudflaredDestination();
                         if (dest != null && !dest.trim().isEmpty()) {
-                            proxy.append(" --destination ").append(dest.trim());
-                        }
-                        String tokenId = profile.getCloudflaredServiceTokenId();
-                        if (tokenId != null && !tokenId.trim().isEmpty()) {
-                            proxy.append(" --id ").append(tokenId.trim());
-                        }
-                        String tokenSecret = profile.getCloudflaredServiceTokenSecret();
-                        if (tokenSecret != null && !tokenSecret.trim().isEmpty()) {
-                            String secret = tokenSecret.trim();
-                            // Escape for shell: wrap in single quotes if needed
-                            if (secret.contains("'") || secret.contains(" ") || secret.contains("\"") || secret.contains("$") || secret.contains("`") || secret.contains("\\")) {
-                                secret = "'" + secret.replace("'", "'\\''") + "'";
-                            }
-                            proxy.append(" --secret ").append(secret);
+                            proxy.append(" --destination ").append(shellQuoteForProxy(dest.trim()));
                         }
                         args.add("-o");
                         args.add("ProxyCommand=" + proxy.toString());
@@ -545,8 +591,15 @@ public class TerminalService extends Service {
 
             argv = args.toArray(new String[0]);
             workDir = homeDir;
-            // Env: include TERM etc will be added in native
-            envp = null;
+            // TERM and the base environment are added by native code. These
+            // credentials are inherited by ProxyCommand's cloudflared process;
+            // OpenSSH does not forward arbitrary variables to the remote host.
+            if (cloudflaredTokenIdForEnv != null) {
+                envp = new String[]{
+                        "TUNNEL_SERVICE_TOKEN_ID=" + cloudflaredTokenIdForEnv,
+                        "TUNNEL_SERVICE_TOKEN_SECRET=" + cloudflaredTokenSecretForEnv
+                };
+            }
         } else {
             // LOCAL
             String shell = profile.getShell();
@@ -598,7 +651,18 @@ public class TerminalService extends Service {
             }
         }
 
-        return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName);
+        return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName,
+                profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled());
+    }
+
+    private static String shellQuote(String value) {
+        if (value == null) return "''";
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    /** Protect against both the ProxyCommand shell and OpenSSH %-token expansion. */
+    private static String shellQuoteForProxy(String value) {
+        return shellQuote(value == null ? "" : value.replace("%", "%%"));
     }
 
     public synchronized List<TerminalSession> getSessions() {
@@ -756,10 +820,18 @@ public class TerminalService extends Service {
         }
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(NOTIFICATION_ID);
-        for (TerminalSession s : sessions) {
-            s.close();
+        final List<TerminalSession> toClose;
+        synchronized (this) {
+            toClose = new ArrayList<>(sessions);
+            sessions.clear();
+            currentSessionIndex = -1;
         }
-        sessions.clear();
-        currentSessionIndex = -1;
+        // nativeClose joins the PTY reader and must never run on the service
+        // main thread, including framework-driven service destruction.
+        new Thread(() -> {
+            for (TerminalSession session : toClose) {
+                try { session.close(); } catch (Exception ignored) {}
+            }
+        }, "TerminalServiceShutdown").start();
     }
 }

@@ -2,7 +2,7 @@ package com.tinyhack.ssh.model;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -49,7 +49,7 @@ public class ProfileManager {
                     byte[] bytes = java.nio.file.Files.readAllBytes(f.toPath());
                     json = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
                 } catch (Exception e) {
-                    Log.w(TAG, "Failed to read profiles file", e);
+                    SafeLog.w(TAG, "Failed to read profiles file", e);
                 }
             }
         }
@@ -66,7 +66,7 @@ public class ProfileManager {
                     ConnectionProfile p = ConnectionProfile.fromJson(o);
                     list.add(p);
                 } catch (Exception e) {
-                    Log.w(TAG, "Skip broken profile index " + i, e);
+                    SafeLog.w(TAG, "Skip broken profile index " + i, e);
                 }
             }
             if (list.isEmpty()) {
@@ -74,7 +74,7 @@ public class ProfileManager {
             }
             return list;
         } catch (Exception e) {
-            Log.e(TAG, "Failed to parse profiles json", e);
+            SafeLog.e(TAG, "Failed to parse profiles json", e);
             return createDefaultProfiles();
         }
     }
@@ -107,10 +107,10 @@ public class ProfileManager {
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
                 fos.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             } catch (Exception e) {
-                Log.w(TAG, "Failed to write profiles file", e);
+                SafeLog.w(TAG, "Failed to write profiles file", e);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Failed to save profiles", e);
+            SafeLog.e(TAG, "Failed to save profiles", e);
         }
     }
 

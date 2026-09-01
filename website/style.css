@@ -53,6 +53,7 @@ nav a:hover { color: var(--text); text-decoration: none; }
 }
 .btn:hover { filter: brightness(1.1); text-decoration: none; }
 .btn.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.btn.disabled { background: #3a3a3a; color: var(--muted); cursor: not-allowed; }
 .badge {
   display: inline-block;
   background: var(--card);

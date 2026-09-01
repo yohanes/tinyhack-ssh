@@ -3,7 +3,7 @@ package com.tinyhack.ssh.util;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.system.Os;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -48,7 +48,7 @@ public class BootstrapInstaller {
         try {
             copyAssets(context, "usr", usrDir);
         } catch (IOException e) {
-            Log.e(TAG, "Failed to copy assets", e);
+            SafeLog.e(TAG, "Failed to copy assets", e);
         }
 
         File bashrc = new File(homeDir, ".bashrc");
@@ -91,7 +91,7 @@ public class BootstrapInstaller {
                     } catch (Exception ignored) {}
                     link.delete();
                     Os.symlink(target.getAbsolutePath(), link.getAbsolutePath());
-                    Log.d(TAG, "Symlinked " + link + " -> " + target);
+                    SafeLog.d(TAG, "Symlinked " + link + " -> " + target);
                 } catch (Exception e) {
                     try (FileOutputStream fos = new FileOutputStream(link)) {
                         String script = "#!/system/bin/sh\nexec \"" + target.getAbsolutePath() + "\" \"$@\"\n";
@@ -172,7 +172,7 @@ public class BootstrapInstaller {
                     try { Os.remove(topLink.getAbsolutePath()); } catch (Exception ignored) {}
                     topLink.delete();
                     Os.symlink(target.getAbsolutePath(), topLink.getAbsolutePath());
-                    Log.d(TAG, "Symlinked " + topLink + " -> " + target);
+                    SafeLog.d(TAG, "Symlinked " + topLink + " -> " + target);
                 } catch (Exception ignored) {}
             }
         }

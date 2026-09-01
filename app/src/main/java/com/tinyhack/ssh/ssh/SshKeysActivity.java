@@ -7,7 +7,7 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
-import android.util.Log;
+import com.tinyhack.ssh.util.SafeLog;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
@@ -30,6 +30,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.Locale;
 
 public class SshKeysActivity extends AppCompatActivity implements SshKeysAdapter.OnKeyActionListener {
     private RecyclerView recyclerView;
@@ -207,7 +208,7 @@ public class SshKeysActivity extends AppCompatActivity implements SshKeysAdapter
 
     private void generateKeyInBackground(boolean securityKey, String keyType, int bits,
                                          String keyName, String passphrase, String comment) {
-        Toast.makeText(this, "Generating " + keyType.toUpperCase() + " key...",
+        Toast.makeText(this, "Generating " + keyType.toUpperCase(Locale.ROOT) + " key...",
                 Toast.LENGTH_SHORT).show();
         Executors.newSingleThreadExecutor().execute(() -> {
             boolean ok = securityKey
@@ -221,10 +222,10 @@ public class SshKeysActivity extends AppCompatActivity implements SshKeysAdapter
                         java.io.File keyFile = new java.io.File(
                                 SshKeyManager.getSshDir(this), keyName);
                         boolean added = agent.addKey(keyFile.getAbsolutePath(), null);
-                        Log.i("SshKeysActivity", "Auto-add new key to agent: " + added);
+                        SafeLog.i("SshKeysActivity", "Auto-add new key to agent: " + added);
                     }
                 } catch (Exception e) {
-                    Log.w("SshKeysActivity", "Auto-add new key to agent failed", e);
+                    SafeLog.w("SshKeysActivity", "Auto-add new key to agent failed", e);
                 }
             }
             runOnUiThread(() -> {

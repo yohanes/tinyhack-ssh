@@ -287,9 +287,27 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
         layout.addView(sshArgsLabel);
         EditText editSshArgs = new EditText(ctx);
         editSshArgs.setText(editing.getSshArgs() != null ? editing.getSshArgs() : "");
-        editSshArgs.setHint("-o StrictHostKeyChecking=no");
+        editSshArgs.setHint("-o ConnectTimeout=10");
         editSshArgs.setSingleLine(true);
         layout.addView(editSshArgs);
+
+        CheckBox checkAgentForwarding = new CheckBox(ctx);
+        checkAgentForwarding.setText("Forward SSH agent (trusted hosts only)");
+        checkAgentForwarding.setTextColor(0xFFAAAAAA);
+        checkAgentForwarding.setChecked(editing.isAgentForwardingEnabled());
+        layout.addView(checkAgentForwarding);
+
+        CheckBox checkKittyGraphics = new CheckBox(ctx);
+        checkKittyGraphics.setText("Enable Kitty graphics (uses more memory)");
+        checkKittyGraphics.setTextColor(0xFFAAAAAA);
+        checkKittyGraphics.setChecked(editing.isKittyGraphicsEnabled());
+        layout.addView(checkKittyGraphics);
+
+        CheckBox checkOsc52 = new CheckBox(ctx);
+        checkOsc52.setText("Allow terminal clipboard writes (OSC 52)");
+        checkOsc52.setTextColor(0xFFAAAAAA);
+        checkOsc52.setChecked(editing.isOsc52ClipboardEnabled());
+        layout.addView(checkOsc52);
 
         // Cloudflare Access section (only for SSH/MOSH; checkbox toggles extra fields)
         CheckBox checkCf = new CheckBox(ctx);
@@ -362,7 +380,7 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             portLabel.setText(t == 2 ? "SSH Port (bootstrap)" : "SSH Port");
             keyLabel.setText("SSH Key (name in ~/.ssh)");
             sshArgsLabel.setText(t == 2 ? "Extra Mosh Args (optional)" : "Extra SSH Args (optional)");
-            editSshArgs.setHint(t == 2 ? "--predict=always --port=60000:61000" : "-o StrictHostKeyChecking=no");
+            editSshArgs.setHint(t == 2 ? "--predict=always --port=60000:61000" : "-o ConnectTimeout=10");
             shellLabel.setVisibility(visLocal);
             editShell.setVisibility(visLocal);
             cwdLabel.setVisibility(visLocal);
@@ -382,10 +400,13 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             spinnerKey.setVisibility(visSsh);
             sshArgsLabel.setVisibility(visSsh);
             editSshArgs.setVisibility(visSsh);
-            // Cloudflare section: only sensible for SSH, but allow MOSH too (it will just SSH bootstrap)
-            int visCfBase = isRemote ? View.VISIBLE : View.GONE;
+            checkAgentForwarding.setVisibility(visSsh);
+            // Cloudflare Access tunnels TCP SSH. Mosh switches to direct UDP
+            // after bootstrap, so exposing this for Mosh would be misleading.
+            boolean cloudflareSupported = t == 1;
+            int visCfBase = cloudflareSupported ? View.VISIBLE : View.GONE;
             checkCf.setVisibility(visCfBase);
-            boolean cfOn = checkCf.isChecked() && isRemote;
+            boolean cfOn = checkCf.isChecked() && cloudflareSupported;
             int visCf = cfOn ? View.VISIBLE : View.GONE;
             cfHostLabel.setVisibility(visCf);
             editCfHost.setVisibility(visCf);
@@ -431,6 +452,8 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                     : (spinnerType.getSelectedItemPosition() == 1 ? ConnectionProfile.Type.SSH : ConnectionProfile.Type.LOCAL);
             editing.setName(name);
             editing.setType(type);
+            editing.setKittyGraphicsEnabled(checkKittyGraphics.isChecked());
+            editing.setOsc52ClipboardEnabled(checkOsc52.isChecked());
             if (type == ConnectionProfile.Type.LOCAL) {
                 String sh = editShell.getText().toString().trim();
                 editing.setShell(sh.isEmpty() ? null : sh);
@@ -442,6 +465,7 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                 editing.setHost(null);
                 editing.setUsername(null);
                 editing.setKeyName(null);
+                editing.setAgentForwardingEnabled(false);
                 editing.setCloudflaredEnabled(false);
                 editing.setCloudflaredHostname(null);
                 editing.setCloudflaredServiceTokenId(null);
@@ -472,8 +496,9 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                 else editing.setKeyName(null);
                 String extra = editSshArgs.getText().toString().trim();
                 editing.setSshArgs(extra.isEmpty() ? null : extra);
+                editing.setAgentForwardingEnabled(checkAgentForwarding.isChecked());
                 // Cloudflare Access
-                boolean cfEnabled = checkCf.isChecked();
+                boolean cfEnabled = type == ConnectionProfile.Type.SSH && checkCf.isChecked();
                 editing.setCloudflaredEnabled(cfEnabled);
                 if (cfEnabled) {
                     String cfH = editCfHost.getText().toString().trim();
@@ -486,10 +511,19 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
                     }
                     editing.setCloudflaredHostname(cfH.isEmpty() ? null : cfH);
                     String cfId = editCfId.getText().toString().trim();
-                    editing.setCloudflaredServiceTokenId(cfId.isEmpty() ? null : cfId);
                     String cfSec = editCfSecret.getText().toString().trim();
+                    if (cfId.isEmpty() != cfSec.isEmpty()) {
+                        Toast.makeText(this, "Cloudflare service token ID and secret must both be set", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    editing.setCloudflaredServiceTokenId(cfId.isEmpty() ? null : cfId);
                     editing.setCloudflaredServiceTokenSecret(cfSec.isEmpty() ? null : cfSec);
                     String cfDest = editCfDest.getText().toString().trim();
+                    String destErr = ConnectionProfile.destinationValidationError(cfDest);
+                    if (destErr != null) {
+                        Toast.makeText(this, destErr, Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     editing.setCloudflaredDestination(cfDest.isEmpty() ? null : cfDest);
                     // If hostname empty, default to host for clarity
                     if (editing.getCloudflaredHostname() == null) {
