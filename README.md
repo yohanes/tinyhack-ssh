@@ -4,6 +4,8 @@ A high-performance Android terminal emulator powered by the native **Ghostty** t
 
 Tinyhack SSH is an independent, unofficial Android port. It uses the open-source Ghostty VT library and is not affiliated with or endorsed by the Ghostty project.
 
+[Download Tinyhack SSH on Google Play](https://play.google.com/store/apps/details?id=com.tinyhack.ssh)
+
 > Package id is `com.tinyhack.ssh`; the user-facing app name is **Tinyhack SSH**.
 
 ---
