@@ -55,12 +55,31 @@ public class TerminalService extends Service {
     private final List<TerminalSession> sessions = new ArrayList<>();
     private int currentSessionIndex = -1;
     private com.tinyhack.ssh.debug.DebugHttpServer debugHttpServer;
+    private com.tinyhack.ssh.util.KittyNotificationManager kittyNotifications;
+    private volatile boolean terminalUiVisible;
+    private volatile boolean terminalUiFocused;
+
+    public void setTerminalUiState(boolean visible, boolean focused) {
+        terminalUiVisible = visible;
+        terminalUiFocused = focused;
+    }
+
+    public boolean isTerminalVisible(TerminalSession session) {
+        return terminalUiVisible && getCurrentSession() == session;
+    }
+
+    public boolean isTerminalFocused(TerminalSession session) {
+        return isTerminalVisible(session) && terminalUiFocused;
+    }
+
+    public com.tinyhack.ssh.util.KittyNotificationManager getKittyNotifications() { return kittyNotifications; }
     private final CopyOnWriteArrayList<SessionsListener> sessionsListeners = new CopyOnWriteArrayList<>();
 
     @Override
     public void onCreate() {
         super.onCreate();
         com.tinyhack.ssh.util.DesktopNotificationHelper.init(this);
+        kittyNotifications = new com.tinyhack.ssh.util.KittyNotificationManager(this);
         createNotificationChannel();
         com.tinyhack.ssh.util.BootstrapInstaller.installIfNeeded(this);
         // Development automation must not be reachable in any release build,
@@ -348,11 +367,11 @@ public class TerminalService extends Service {
     }
 
     private synchronized TerminalSession createSessionInternal(String cmd, String cwd, String[] argv, String[] envp, String profileId, String sessionName) {
-        return createSessionInternal(cmd, cwd, argv, envp, profileId, sessionName, false, false);
+        return createSessionInternal(cmd, cwd, argv, envp, profileId, sessionName, false, false, false);
     }
 
     private synchronized TerminalSession createSessionInternal(String cmd, String cwd, String[] argv, String[] envp,
-            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled) {
+            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled, boolean notificationsEnabled) {
         // Inject SSH agent env if running
         envp = injectAgentEnv(envp);
         String homeDir = getFilesDir().getAbsolutePath() + "/home";
@@ -377,7 +396,7 @@ public class TerminalService extends Service {
         }
 
         TerminalSession session = new TerminalSession(command, workDir, arguments, envp, 24, 80, 10, 20,
-                profileId, sessionName, kittyGraphicsEnabled, osc52ClipboardEnabled);
+                profileId, sessionName, kittyGraphicsEnabled, osc52ClipboardEnabled, notificationsEnabled, kittyNotifications);
         sessions.add(session);
         currentSessionIndex = sessions.size() - 1;
 
@@ -493,7 +512,7 @@ public class TerminalService extends Service {
                 workDir = homeDir;
                 envp = null;
                 return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName,
-                        profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled());
+                        profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled(), profile.isTerminalNotificationsEnabled());
             }
 
             cmd = sshPath;
@@ -652,7 +671,7 @@ public class TerminalService extends Service {
         }
 
         return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName,
-                profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled());
+                profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled(), profile.isTerminalNotificationsEnabled());
     }
 
     private static String shellQuote(String value) {
@@ -742,6 +761,7 @@ public class TerminalService extends Service {
         if (session != null) {
             boolean wasCurrent = sessions.indexOf(session) == currentSessionIndex;
             // Remove from list immediately to update UI without blocking
+            if (kittyNotifications != null) kittyNotifications.onSessionClosed(session);
             sessions.remove(session);
             if (currentSessionIndex >= sessions.size()) {
                 currentSessionIndex = sessions.size() - 1;
@@ -814,6 +834,7 @@ public class TerminalService extends Service {
 
     @Override
     public void onDestroy() {
+        if (kittyNotifications != null) kittyNotifications.destroy();
         super.onDestroy();
         if (debugHttpServer != null) {
             debugHttpServer.stop();

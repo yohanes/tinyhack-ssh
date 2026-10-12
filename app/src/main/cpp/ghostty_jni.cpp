@@ -250,6 +250,42 @@ static void on_desktop_notification(GhosttyTerminal terminal, void* userdata, co
     if (needDeleteHelper) env->DeleteLocalRef(helperCls);
 }
 
+// The core owns these bytes only during this call. Java copies them and queues
+// notification work, keeping Android APIs and PTY replies outside the VT lock.
+static void on_kitty_notification(GhosttyTerminal, void* userdata, const GhosttyTerminalKittyNotification* chunk) {
+    auto* session = static_cast<NativeSession*>(userdata);
+    if (!session || !session->java_callback || !chunk || chunk->metadata.len > 2048 || chunk->payload.len > 4096) return;
+    JNIEnv* env = get_jni_env();
+    if (!env) return;
+    jbyteArray metadata = env->NewByteArray(static_cast<jsize>(chunk->metadata.len));
+    jbyteArray payload = metadata ? env->NewByteArray(static_cast<jsize>(chunk->payload.len)) : nullptr;
+    jclass cls = nullptr;
+    if (metadata && payload) {
+        if (chunk->metadata.len) env->SetByteArrayRegion(metadata, 0, chunk->metadata.len, reinterpret_cast<const jbyte*>(chunk->metadata.ptr));
+        if (chunk->payload.len) env->SetByteArrayRegion(payload, 0, chunk->payload.len, reinterpret_cast<const jbyte*>(chunk->payload.ptr));
+        cls = env->GetObjectClass(session->java_callback);
+        jmethodID mid = cls ? env->GetMethodID(cls, "onKittyNotification", "([B[B)[B") : nullptr;
+        if (mid && !env->ExceptionCheck()) {
+            auto reply = static_cast<jbyteArray>(env->CallObjectMethod(session->java_callback, mid, metadata, payload));
+            if (reply && !env->ExceptionCheck()) {
+                jsize len = env->GetArrayLength(reply);
+                if (len > 0 && len <= 1024) {
+                    jbyte* data = env->GetByteArrayElements(reply, nullptr);
+                    if (data) {
+                        on_write_pty(session->terminal, session, reinterpret_cast<uint8_t*>(data), len);
+                        env->ReleaseByteArrayElements(reply, data, JNI_ABORT);
+                    }
+                }
+                env->DeleteLocalRef(reply);
+            }
+        }
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    if (cls) env->DeleteLocalRef(cls);
+    if (metadata) env->DeleteLocalRef(metadata);
+    if (payload) env->DeleteLocalRef(payload);
+}
+
 static int throw_exception(JNIEnv* env, const char* msg) {
     jclass cls = env->FindClass("java/lang/RuntimeException");
     if (cls) {
@@ -333,6 +369,9 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE, reinterpret_cast<const void*>(clip_fn));
     GhosttyTerminalDesktopNotificationFn notify_fn = on_desktop_notification;
     ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_DESKTOP_NOTIFICATION, reinterpret_cast<const void*>(notify_fn));
+
+    GhosttyTerminalKittyNotificationFn kitty_notify_fn = on_kitty_notification;
+    ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_KITTY_NOTIFICATION, reinterpret_cast<const void*>(kitty_notify_fn));
 
     // Initialize Render State
     ghostty_render_state_new(nullptr, &session->render_state);

@@ -66,6 +66,8 @@
             android:excludeFromRecents="true"
             android:theme="@style/Theme.TinyhackSSH.Translucent" />
 
+        <receiver android:name=".util.KittyNotificationReceiver" android:exported="false" />
+
         <service
             android:name=".service.TerminalService"
             android:foregroundServiceType="specialUse"

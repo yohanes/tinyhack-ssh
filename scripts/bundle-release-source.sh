@@ -62,7 +62,7 @@ copy_source_tree "$PROJECT_DIR/build-mosh/abseil-cpp-20250512.1" "$STAGE/corresp
     echo "Tinyhack SSH commit: $(git -C "$PROJECT_DIR" rev-parse HEAD)"
     echo "Ghostty commit: $(git -C "$PROJECT_DIR/ghostty" rev-parse HEAD)"
     echo
-    echo "Build entry points: scripts/rebuild-userland-16kb.sh and the Gradle build."
+    echo "Build entry points: scripts/build-ghostty-android.sh, scripts/rebuild-userland-16kb.sh, and the Gradle build."
     echo "Contact: tinyhack-ssh@tinyhack.com"
 } > "$STAGE/SOURCE-MANIFEST.txt"
 

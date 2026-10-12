@@ -28,7 +28,7 @@ requirements; this notice does not attempt to reclassify linked components as
 | utf8_range (statically linked into mosh-client via protobuf) | bundled with protobuf 36.2 | MIT | `licenses/utf8-range.LICENSE.MIT` | protobuf source tree, `third_party/utf8_range/` |
 | ncurses / tinfo (statically linked into mosh-client) | 6.6 | X11-style (permissive) | `licenses/ncurses-6.6.COPYING` | upstream tarball + `build-mosh/` |
 | zlib (statically linked into mosh-client) | 1.3.2 | zlib license | `licenses/zlib-1.3.2.LICENSE` | upstream tarball + `build-mosh/` |
-| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | vendored snapshot | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + generated `native/ghostty/` archive |
+| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | vendored snapshot | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + `patches/ghostty-osc99.patch`, `scripts/build-ghostty-android.sh` + generated `native/ghostty/` archive |
 | terminfo entries (`xterm-kitty`, `xterm-ghostty`, `ghostty`, `kitty`, `xterm-256color`) | N/A | Ghostty/kitty/ncurses upstream licenses | Ghostty MIT above; `licenses/ncurses-6.6.COPYING`; GPLv3 text bundled with the GPL components | compiled assets plus reproducible source in `terminfo-sources/` |
 | Cascadia Code and Cascadia Mono | bundled font versions | SIL OFL 1.1 | `licenses/font-cascadia.OFL-1.1` | Microsoft Cascadia Code project |
 | Fira Code | bundled font version | SIL OFL 1.1 | `licenses/font-fira-code.OFL-1.1` | Fira Code project |

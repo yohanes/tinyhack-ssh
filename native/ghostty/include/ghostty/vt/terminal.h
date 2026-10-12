@@ -853,6 +853,17 @@ typedef void (*GhosttyTerminalDesktopNotificationFn)(
     void* userdata,
     const GhosttyTerminalDesktopNotification* notification);
 
+/** A borrowed OSC 99 chunk, valid only during the callback. */
+typedef struct {
+  size_t size;
+  GhosttyString metadata;
+  GhosttyString payload;
+} GhosttyTerminalKittyNotification;
+
+typedef void (*GhosttyTerminalKittyNotificationFn)(
+    GhosttyTerminal terminal, void* userdata,
+    const GhosttyTerminalKittyNotification* notification);
+
 /**
  * State of a terminal progress report.
  *
@@ -1545,6 +1556,8 @@ typedef enum GHOSTTY_ENUM_TYPED {
    * Input type: size_t*
    */
   GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE_MAX_BYTES = 39,
+  /** OSC 99 chunk callback. Input: GhosttyTerminalKittyNotificationFn. */
+  GHOSTTY_TERMINAL_OPT_KITTY_NOTIFICATION = 40,
   GHOSTTY_TERMINAL_OPT_MAX_VALUE = GHOSTTY_ENUM_MAX_VALUE,
 } GhosttyTerminalOption;
 

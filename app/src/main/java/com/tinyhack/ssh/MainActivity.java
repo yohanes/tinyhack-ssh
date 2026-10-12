@@ -98,6 +98,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     private View btnSshAgentDrawer;
     private ProfileManager profileManager;
     private String pendingConnectProfileId;
+    private boolean terminalUiResumed;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -107,6 +108,8 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
             isBound = true;
             terminalService.addSessionsListener(MainActivity.this);
             setupSession();
+            terminalService.setTerminalUiState(terminalUiResumed, hasWindowFocus());
+            handleNotificationIntent();
             refreshSessionsList();
             refreshProfilesDrawer();
             if (pendingConnectProfileId != null) {
@@ -634,6 +637,8 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     @Override
     protected void onResume() {
         super.onResume();
+        terminalUiResumed = true;
+        if (terminalService != null) terminalService.setTerminalUiState(true, hasWindowFocus());
         refreshProfilesDrawer();
         refreshSessionsList();
         // Re-assert immersive state (system bars can reappear after returning from another app)
@@ -643,6 +648,25 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
             terminalView.requestFocus();
         }
         updateSessionClosedUi();
+    }
+
+    @Override
+    protected void onPause() {
+        terminalUiResumed = false;
+        if (terminalService != null) terminalService.setTerminalUiState(false, false);
+        super.onPause();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (terminalService != null) terminalService.setTerminalUiState(terminalUiResumed, hasFocus);
+    }
+
+    private void handleNotificationIntent() {
+        if (terminalService == null || terminalService.getKittyNotifications() == null) return;
+        String sessionId = terminalService.getKittyNotifications().handleIntent(getIntent());
+        if (sessionId != null && terminalService.setCurrentSessionById(sessionId)) setupSession();
     }
 
     private void showRenameSessionDialog(TerminalSession session) {
@@ -677,6 +701,8 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
                     terminalService.removeSession(session);
                     if (wasCurrent) {
                         setupSession();
+            terminalService.setTerminalUiState(terminalUiResumed, hasWindowFocus());
+            handleNotificationIntent();
                     }
                     refreshSessionsList();
                 })
@@ -1195,6 +1221,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        handleNotificationIntent();
         handlePendingConnectRequest();
     }
 

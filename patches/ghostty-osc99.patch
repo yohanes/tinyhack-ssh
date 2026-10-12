@@ -1,0 +1,246 @@
+diff --git a/include/ghostty/vt/terminal.h b/include/ghostty/vt/terminal.h
+index 172674bf5..0fb2c42df 100644
+--- a/include/ghostty/vt/terminal.h
++++ b/include/ghostty/vt/terminal.h
+@@ -853,6 +853,17 @@ typedef void (*GhosttyTerminalDesktopNotificationFn)(
+     void* userdata,
+     const GhosttyTerminalDesktopNotification* notification);
+ 
++/** A borrowed OSC 99 chunk, valid only during the callback. */
++typedef struct {
++  size_t size;
++  GhosttyString metadata;
++  GhosttyString payload;
++} GhosttyTerminalKittyNotification;
++
++typedef void (*GhosttyTerminalKittyNotificationFn)(
++    GhosttyTerminal terminal, void* userdata,
++    const GhosttyTerminalKittyNotification* notification);
++
+ /**
+  * State of a terminal progress report.
+  *
+@@ -1545,6 +1556,8 @@ typedef enum GHOSTTY_ENUM_TYPED {
+    * Input type: size_t*
+    */
+   GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE_MAX_BYTES = 39,
++  /** OSC 99 chunk callback. Input: GhosttyTerminalKittyNotificationFn. */
++  GHOSTTY_TERMINAL_OPT_KITTY_NOTIFICATION = 40,
+   GHOSTTY_TERMINAL_OPT_MAX_VALUE = GHOSTTY_ENUM_MAX_VALUE,
+ } GhosttyTerminalOption;
+ 
+diff --git a/src/terminal/c/terminal.zig b/src/terminal/c/terminal.zig
+index 70d7ab849..d3a0f6d0b 100644
+--- a/src/terminal/c/terminal.zig
++++ b/src/terminal/c/terminal.zig
+@@ -206,6 +206,13 @@ pub const DesktopNotification = extern struct {
+     body: lib.String,
+ };
+ 
++/// A borrowed OSC 99 chunk. Assembly belongs to the embedder.
++pub const KittyNotification = extern struct {
++    size: usize,
++    metadata: lib.String,
++    payload: lib.String,
++};
++
+ /// C: GhosttyTerminalProgressState
+ pub const ProgressState = osc.Command.ProgressReport.State;
+ 
+@@ -275,6 +282,7 @@ const Effects = struct {
+     bell: ?BellFn = null,
+     color_scheme: ?ColorSchemeFn = null,
+     desktop_notification: ?DesktopNotificationFn = null,
++    kitty_notification: ?KittyNotificationFn = null,
+     device_attributes_cb: ?DeviceAttributesFn = null,
+     enquiry: ?EnquiryFn = null,
+     xtversion: ?XtversionFn = null,
+@@ -329,6 +337,8 @@ const Effects = struct {
+     /// request and its strings are borrowed for the callback duration.
+     pub const DesktopNotificationFn = *const fn (Terminal, ?*anyopaque, *const DesktopNotification) callconv(lib.calling_conv) void;
+ 
++    pub const KittyNotificationFn = *const fn (Terminal, ?*anyopaque, *const KittyNotification) callconv(lib.calling_conv) void;
++
+     /// C function pointer type for the title_changed callback.
+     pub const TitleChangedFn = *const fn (Terminal, ?*anyopaque) callconv(lib.calling_conv) void;
+ 
+@@ -548,6 +558,17 @@ const Effects = struct {
+         } });
+     }
+ 
++    fn kittyNotificationTrampoline(handler: *Handler, chunk: osc.Command.KittyDesktopNotification) void {
++        const wrapper = TerminalWrapper.fromHandler(handler);
++        const func = wrapper.effects.kitty_notification orelse return;
++        const request: KittyNotification = .{
++            .size = @sizeOf(KittyNotification),
++            .metadata = .{ .ptr = chunk.metadata.ptr, .len = chunk.metadata.len },
++            .payload = .{ .ptr = chunk.payload.ptr, .len = chunk.payload.len },
++        };
++        func(@ptrCast(wrapper), wrapper.effects.userdata, &request);
++    }
++
+     fn desktopNotificationTrampoline(
+         handler: *Handler,
+         notification: Action.ShowDesktopNotification,
+@@ -709,6 +730,7 @@ fn wrap(
+         .bell = &Effects.bellTrampoline,
+         .color_scheme = &Effects.colorSchemeTrampoline,
+         .desktop_notification = &Effects.desktopNotificationTrampoline,
++        .kitty_notification = &Effects.kittyNotificationTrampoline,
+         .drag_and_drop = null,
+         .device_attributes = &Effects.deviceAttributesTrampoline,
+         .enquiry = &Effects.enquiryTrampoline,
+@@ -1219,6 +1241,7 @@ pub const Option = enum(c_int) {
+     terminfo_name = 37,
+     clipboard_read = 38,
+     clipboard_write_max_bytes = 39,
++    kitty_notification = 40,
+ 
+     /// Input type expected for setting the option.
+     pub fn InType(comptime self: Option) type {
+@@ -1228,6 +1251,7 @@ pub const Option = enum(c_int) {
+             .bell => ?Effects.BellFn,
+             .color_scheme => ?Effects.ColorSchemeFn,
+             .desktop_notification => ?Effects.DesktopNotificationFn,
++            .kitty_notification => ?Effects.KittyNotificationFn,
+             .device_attributes => ?Effects.DeviceAttributesFn,
+             .enquiry => ?Effects.EnquiryFn,
+             .xtversion => ?Effects.XtversionFn,
+@@ -1298,6 +1322,7 @@ fn setTyped(
+         .bell => wrapper.effects.bell = value,
+         .color_scheme => wrapper.effects.color_scheme = value,
+         .desktop_notification => wrapper.effects.desktop_notification = value,
++        .kitty_notification => wrapper.effects.kitty_notification = value,
+         .device_attributes => wrapper.effects.device_attributes_cb = value,
+         .enquiry => wrapper.effects.enquiry = value,
+         .xtversion => wrapper.effects.xtversion = value,
+@@ -6241,3 +6266,37 @@ test "get_multi null keys returns invalid_value" {
+     var values = [_]?*anyopaque{@ptrCast(&cols)};
+     try testing.expectEqual(Result.invalid_value, get_multi(null, 1, null, &values, null));
+ }
++
++test "OSC 99 chunk callback" {
++    var t: Terminal = null;
++    try testing.expectEqual(Result.success, new(&lib.alloc.test_allocator, &t, 80, 24));
++    defer free(t);
++    const S = struct {
++        var count: usize = 0;
++        var metadata: [64]u8 = undefined;
++        var metadata_len: usize = 0;
++        var payload: [64]u8 = undefined;
++        var payload_len: usize = 0;
++        fn notify(_: Terminal, _: ?*anyopaque, chunk: *const KittyNotification) callconv(lib.calling_conv) void {
++            count += 1;
++            metadata_len = chunk.metadata.len;
++            payload_len = chunk.payload.len;
++            @memcpy(metadata[0..metadata_len], chunk.metadata.ptr[0..metadata_len]);
++            @memcpy(payload[0..payload_len], chunk.payload.ptr[0..payload_len]);
++        }
++    };
++    S.count = 0;
++    try testing.expectEqual(Result.success, set(t, .kitty_notification, @ptrCast(&S.notify)));
++    const first = "\x1b]99;i=build:d=0;Hi ";
++    const second = "\xf0\x9f\x98\x80\x1b\\";
++    vt_write(t, first, first.len);
++    try testing.expectEqual(@as(usize, 0), S.count);
++    vt_write(t, second, second.len);
++    try testing.expectEqual(@as(usize, 1), S.count);
++    try testing.expectEqualStrings("i=build:d=0", S.metadata[0..S.metadata_len]);
++    try testing.expectEqualStrings("Hi \xf0\x9f\x98\x80", S.payload[0..S.payload_len]);
++    try testing.expectEqual(Result.success, set(t, .kitty_notification, null));
++    vt_write(t, first, first.len);
++    vt_write(t, second, second.len);
++    try testing.expectEqual(@as(usize, 1), S.count);
++}
+diff --git a/src/terminal/c/types.zig b/src/terminal/c/types.zig
+index c1f524a86..c480de087 100644
+--- a/src/terminal/c/types.zig
++++ b/src/terminal/c/types.zig
+@@ -217,6 +217,7 @@ const type_decls = [_]TypeDecl{
+     .initUnion("GhosttyStyleColorValue", style.ColorValue, null),
+     .initStruct("GhosttySysImage", sys.Image),
+     .initStruct("GhosttyTerminalDesktopNotification", terminal.DesktopNotification),
++    .initStruct("GhosttyTerminalKittyNotification", terminal.KittyNotification),
+     .initStruct("GhosttyTerminalModeConfig", terminal.ModeConfig),
+     .initStruct("GhosttyTerminalProgressReport", terminal.ProgressReport),
+     .initStruct("GhosttyTerminalScrollbar", terminal.TerminalScrollbar),
+diff --git a/src/terminal/osc/parsers/kitty_desktop_notification.zig b/src/terminal/osc/parsers/kitty_desktop_notification.zig
+index 27fc86702..1b18a46a7 100644
+--- a/src/terminal/osc/parsers/kitty_desktop_notification.zig
++++ b/src/terminal/osc/parsers/kitty_desktop_notification.zig
+@@ -17,6 +17,12 @@ pub const MAX_PLAIN_PAYLOAD_BYTES = 2048;
+ pub const MAX_ENCODED_PAYLOAD_BYTES = 4096;
+ 
+ pub const OSC = struct {
++    // Stream action data is delivered through the dedicated C callback.
++    pub const C = void;
++    pub fn cval(_: OSC) C {
++        return {};
++    }
++
+     /// The raw metadata that was received. It can be parsed by using the `readOption` method.
+     metadata: []const u8,
+     /// The raw payload. It may be Base64 encoded, check the `e` option.
+diff --git a/src/terminal/stream.zig b/src/terminal/stream.zig
+index cd62a316a..8fd703ade 100644
+--- a/src/terminal/stream.zig
++++ b/src/terminal/stream.zig
+@@ -130,6 +130,7 @@ pub const Action = union(Key) {
+     semantic_prompt: SemanticPrompt,
+     kitty_clipboard: KittyClipboard,
+     kitty_dnd: KittyDnd,
++    kitty_desktop_notification: osc.Command.KittyDesktopNotification,
+ 
+     pub const Key = lib.Enum(
+         lib.target,
+@@ -231,6 +232,7 @@ pub const Action = union(Key) {
+             "semantic_prompt",
+             "kitty_clipboard",
+             "kitty_dnd",
++            "kitty_desktop_notification",
+         },
+     );
+ 
+@@ -2569,6 +2571,10 @@ pub fn Stream(comptime H: type) type {
+                     self.handler.vt(.kitty_dnd, v);
+                 },
+ 
++                .kitty_desktop_notification => |v| {
++                    self.handler.vt(.kitty_desktop_notification, v);
++                },
++
+                 .conemu_sleep,
+                 .conemu_show_message_box,
+                 .conemu_change_tab_title,
+@@ -2579,7 +2585,6 @@ pub fn Stream(comptime H: type) type {
+                 .conemu_output_environment_variable,
+                 .conemu_run_process,
+                 .kitty_text_sizing,
+-                .kitty_desktop_notification,
+                 .context_signal,
+                 => {
+                     log.debug("unimplemented OSC callback: {}", .{cmd});
+diff --git a/src/terminal/stream_terminal.zig b/src/terminal/stream_terminal.zig
+index 66a38f99b..e4b99e961 100644
+--- a/src/terminal/stream_terminal.zig
++++ b/src/terminal/stream_terminal.zig
+@@ -123,6 +123,9 @@ pub const Handler = struct {
+         /// valid for the duration of the callback.
+         desktop_notification: ?*const fn (*Handler, Action.ShowDesktopNotification) void,
+ 
++        /// Borrowed OSC 99 chunk; the embedder owns assembly and replies.
++        kitty_notification: ?*const fn (*Handler, osc.Command.KittyDesktopNotification) void = null,
++
+         /// Called when drag and drop protocol state changes in a way the
+         /// embedder may need to act on: the running program registering
+         /// or unregistering to accept drops, answering a drag, or
+@@ -486,6 +489,9 @@ pub const Handler = struct {
+             // Effect-based handlers
+             .bell => self.bell(),
+             .show_desktop_notification => self.desktopNotification(value),
++            .kitty_desktop_notification => {
++                if (self.effects.kitty_notification) |func| func(self, value);
++            },
+             .device_attributes => self.reportDeviceAttributes(value),
+             .device_status => self.deviceStatus(value.request),
+             .enquiry => self.reportEnquiry(),

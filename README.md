@@ -32,7 +32,7 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Multi-Session & Connection Profiles**:
   - Drawer-based session list: switch, rename (long-press), close.
   - Connection profiles (LOCAL / SSH / MOSH) with host, port, username, key, shell, cwd, env, and extra args (ssh or mosh, e.g. `--predict=always`); one-tap connect into a new session.
-  - SSH agent forwarding, Kitty graphics, and OSC 52 clipboard writes are separate per-profile opt-ins and default off.
+  - SSH agent forwarding, Kitty graphics, OSC 52 clipboard writes, and OSC 99 notifications are separate per-profile opt-ins and default off.
   - Cloudflare Access option per SSH profile: toggle "Use Cloudflare Access", set Access hostname + optional Service Token ID/Secret and `--destination` for bastion mode. Mosh is not offered through this TCP tunnel because its data path requires direct UDP reachability.
 - **Termux-like UX & Background Running**:
   - Three-finger tap menu, scrollback, selection mode with copy bar.
@@ -42,6 +42,10 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Clickable Hyperlinks (OSC 8)**:
   - URIs embedded as `ESC]8;;https://example.com ESC\` are underlined and tappable; tap opens the URL.
   - By default shows a confirmation dialog with the (truncated) URL and **Open** / **Copy Link** / **Cancel**. The **Confirm URL click** setting now directly reflects that behavior, and only HTTP(S)/mailto links can open.
+- **Kitty Notifications (OSC 99)**:
+  - Enable **Allow terminal notifications (OSC 99; local/SSH)** in a connection profile, then reconnect. Supports chunked title/body text, UTF-8/base64, notification IDs and updates, focus/report click actions, close events, alive/capability queries, expiry, and visibility filtering. Sound and urgency follow Android channel settings and notification permission.
+  - State is scoped to the originating session and cleared when it closes. Requests are limited to 16 KiB decoded text, 8 pending/active notifications per session (64 each app-wide), and 10 posts per 10 seconds per session. Incomplete requests expire after 30 seconds.
+  - Custom icons and action buttons are not advertised. Stock Mosh does not forward OSC 99; use a local shell or SSH.
 - **Desktop Notifications (OSC 9 / OSC 777)**:
   - Programs that emit `ESC]9;message BEL` or `ESC]777;notify;title;body BEL` trigger an Android notification in channel *Desktop Notifications* that opens Tinyhack SSH on tap.
 - **Styled Underlines & Underline Colors (SGR 4:x / 58)**:
@@ -192,3 +196,25 @@ Bash uses the GNU 5.3 release plus official patches 001–020; its Android
 Readline fallback and rsync’s existing data-directory compatibility behavior
 are retained in `patches/`. Mosh 1.4.0 links OpenSSL 3.5.9 LTS, zlib 1.3.2,
 ncurses 6.6, and protobuf 36.2 with protobuf’s pinned Abseil dependency.
+
+To send an OSC 99 notification from an enabled profile:
+
+```bash
+printf '\033]99;i=build:d=0;Build complete\033\\'
+printf '\033]99;i=build:p=body;All checks passed\033\\'
+```
+
+`a=report` requests an activation reply; `a=-focus,report` reports without
+opening the terminal. Replies are written only to the originating live session.
+Clients can discover supported features with `OSC 99;i=probe:p=?;ST`.
+The protocol is documented at <https://sw.kovidgoyal.net/kitty/desktop-notifications/>.
+
+Rebuild the VT core with `scripts/build-ghostty-android.sh` (Zig 0.16.0 and the
+existing Ghostty source snapshot are required). The tracked
+`patches/ghostty-osc99.patch` forwards parsed OSC 99 chunks through a dedicated
+C callback; the Android bridge keeps notification effects outside the VT lock.
+
+The opt-in debug HTTP server also provides `/notifications` to inspect active
+OSC 99 notifications and `POST /notifications/action?id=<android-id>&action=activate|dismiss`
+to exercise their real PendingIntents. Both require the existing bearer token,
+and notification actions are limited to OSC 99 notifications owned by this app.

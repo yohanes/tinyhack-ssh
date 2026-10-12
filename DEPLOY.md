@@ -100,6 +100,10 @@ TINYHACK_SSH_KEY_PASSWORD=replace-me
 
 ## 4. Rebuild native userland for 16 KiB pages
 
+When terminal-core code changes, run `scripts/build-ghostty-android.sh` with
+Zig 0.16.0 and the matching Ghostty source snapshot. This applies the tracked
+OSC 99 patch and installs the archive/header used by the Gradle build.
+
 Run this for the first release and whenever Bash, BusyBox, rsync, OpenSSH,
 OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags change:
 

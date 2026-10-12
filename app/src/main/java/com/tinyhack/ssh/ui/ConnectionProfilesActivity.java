@@ -309,6 +309,12 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
         checkOsc52.setChecked(editing.isOsc52ClipboardEnabled());
         layout.addView(checkOsc52);
 
+        CheckBox checkNotifications = new CheckBox(ctx);
+        checkNotifications.setText("Allow terminal notifications (OSC 99; local/SSH)");
+        checkNotifications.setTextColor(0xFFAAAAAA);
+        checkNotifications.setChecked(editing.isTerminalNotificationsEnabled());
+        layout.addView(checkNotifications);
+
         // Cloudflare Access section (only for SSH/MOSH; checkbox toggles extra fields)
         CheckBox checkCf = new CheckBox(ctx);
         checkCf.setText("Use Cloudflare Access (cloudflared)");
@@ -454,6 +460,7 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             editing.setType(type);
             editing.setKittyGraphicsEnabled(checkKittyGraphics.isChecked());
             editing.setOsc52ClipboardEnabled(checkOsc52.isChecked());
+            editing.setTerminalNotificationsEnabled(checkNotifications.isChecked());
             if (type == ConnectionProfile.Type.LOCAL) {
                 String sh = editShell.getText().toString().trim();
                 editing.setShell(sh.isEmpty() ? null : sh);

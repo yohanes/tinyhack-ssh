@@ -65,6 +65,7 @@ public class ConnectionProfile {
     // Terminal capabilities are opt-in because remote hosts control terminal output.
     private boolean kittyGraphicsEnabled = false;
     private boolean osc52ClipboardEnabled = false;
+    private boolean terminalNotificationsEnabled = false;
 
     // Cloudflare Access (cloudflared) fields - for SSH via Access tunnel
     private boolean cloudflaredEnabled = false;
@@ -176,6 +177,9 @@ public class ConnectionProfile {
     public void setAgentForwardingEnabled(boolean enabled) { this.agentForwardingEnabled = enabled; }
     public boolean isKittyGraphicsEnabled() { return kittyGraphicsEnabled; }
     public void setKittyGraphicsEnabled(boolean enabled) { this.kittyGraphicsEnabled = enabled; }
+    public boolean isTerminalNotificationsEnabled() { return terminalNotificationsEnabled; }
+    public void setTerminalNotificationsEnabled(boolean enabled) { terminalNotificationsEnabled = enabled; }
+
     public boolean isOsc52ClipboardEnabled() { return osc52ClipboardEnabled; }
     public void setOsc52ClipboardEnabled(boolean enabled) { this.osc52ClipboardEnabled = enabled; }
     public boolean isCloudflaredEnabled() { return cloudflaredEnabled; }
@@ -243,6 +247,7 @@ public class ConnectionProfile {
         o.put("agentForwardingEnabled", agentForwardingEnabled);
         o.put("kittyGraphicsEnabled", kittyGraphicsEnabled);
         o.put("osc52ClipboardEnabled", osc52ClipboardEnabled);
+        o.put("terminalNotificationsEnabled", terminalNotificationsEnabled);
         o.put("cloudflaredEnabled", cloudflaredEnabled);
         o.put("cloudflaredHostname", cloudflaredHostname != null ? cloudflaredHostname : "");
         o.put("cloudflaredServiceTokenId", cloudflaredServiceTokenId != null ? cloudflaredServiceTokenId : "");
@@ -290,6 +295,7 @@ public class ConnectionProfile {
         p.agentForwardingEnabled = o.optBoolean("agentForwardingEnabled", false);
         p.kittyGraphicsEnabled = o.optBoolean("kittyGraphicsEnabled", false);
         p.osc52ClipboardEnabled = o.optBoolean("osc52ClipboardEnabled", false);
+        p.terminalNotificationsEnabled = o.optBoolean("terminalNotificationsEnabled", false);
         p.cloudflaredEnabled = o.optBoolean("cloudflaredEnabled", false);
         s = o.optString("cloudflaredHostname", "");
         p.cloudflaredHostname = s.isEmpty() ? null : s;

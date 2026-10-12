@@ -292,6 +292,55 @@ public class DebugHttpServer {
             return;
         }
 
+        // Only our OSC 99 notifications; the server itself is debug-only,
+        // loopback-only, opt-in, and bearer-authenticated before routing.
+        if ("/notifications".equals(path) || "/notifications/action".equals(path)) {
+            android.app.NotificationManager nm = service.getSystemService(android.app.NotificationManager.class);
+            org.json.JSONArray list = new org.json.JSONArray();
+            android.app.PendingIntent actionIntent = null;
+            String requestedId = params.get("id");
+            String action = params.get("action");
+            if ("/notifications/action".equals(path) && (!"POST".equalsIgnoreCase(method)
+                    || (!"activate".equals(action) && !"dismiss".equals(action)))) {
+                sendResponse(out, 400, "text/plain", "POST with action=activate|dismiss required\n".getBytes(StandardCharsets.UTF_8));
+                return;
+            }
+            if (nm != null) {
+                for (android.service.notification.StatusBarNotification n : nm.getActiveNotifications()) {
+                    if (n.getTag() == null || !n.getTag().startsWith(com.tinyhack.ssh.util.KittyNotificationManager.TAG_PREFIX)) continue;
+                    android.app.Notification notification = n.getNotification();
+                    if ("/notifications/action".equals(path)) {
+                        if (String.valueOf(n.getId()).equals(requestedId)) {
+                            actionIntent = "activate".equals(action) ? notification.contentIntent : notification.deleteIntent;
+                            break;
+                        }
+                    } else {
+                        try {
+                            org.json.JSONObject item = new org.json.JSONObject();
+                            item.put("id", n.getId());
+                            item.put("tag", n.getTag());
+                            item.put("title", notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE, "").toString());
+                            item.put("body", notification.extras.getCharSequence(android.app.Notification.EXTRA_TEXT, "").toString());
+                            list.put(item);
+                        } catch (org.json.JSONException ignored) { }
+                    }
+                }
+            }
+            if ("/notifications".equals(path)) {
+                sendResponse(out, 200, "application/json", list.toString().getBytes(StandardCharsets.UTF_8));
+            } else if (actionIntent == null) {
+                sendResponse(out, 404, "text/plain", "Notification action not found\n".getBytes(StandardCharsets.UTF_8));
+            } else {
+                android.app.PendingIntent target = actionIntent;
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    try { target.send(); }
+                    catch (android.app.PendingIntent.CanceledException e) { SafeLog.w(TAG, "Notification action was canceled", e); }
+                });
+                sendResponse(out, 200, "application/json", "{\"queued\":true}".getBytes(StandardCharsets.UTF_8));
+            }
+            return;
+        }
+
         if ("/dump".equals(path) || "/text".equals(path)) {
             String text = session != null ? session.getScreenText() : "(no active session)\n";
             sendResponse(out, 200, "text/plain; charset=utf-8", text.getBytes(StandardCharsets.UTF_8));

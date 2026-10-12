@@ -43,6 +43,14 @@ public class TerminalSession implements SessionCallback {
     private final String profileId;
     private final boolean kittyGraphicsEnabled;
     private final boolean osc52ClipboardEnabled;
+    private final boolean notificationsEnabled;
+    private final NotificationListener notificationListener;
+    private final java.util.concurrent.atomic.AtomicInteger queuedNotifications = new java.util.concurrent.atomic.AtomicInteger();
+
+    public interface NotificationListener {
+        void onNotification(TerminalSession session, byte[] metadata, byte[] payload);
+        void onSessionClosed(TerminalSession session);
+    }
     private String sessionName;
     private final long createdAt;
     private int exitCode = -1;
@@ -57,10 +65,19 @@ public class TerminalSession implements SessionCallback {
 
     public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
                            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled) {
+        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName,
+                kittyGraphicsEnabled, osc52ClipboardEnabled, false, null);
+    }
+
+    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
+                           String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled,
+                           boolean notificationsEnabled, NotificationListener notificationListener) {
         this.id = UUID.randomUUID().toString();
         this.profileId = profileId;
         this.kittyGraphicsEnabled = kittyGraphicsEnabled;
         this.osc52ClipboardEnabled = osc52ClipboardEnabled;
+        this.notificationsEnabled = notificationsEnabled;
+        this.notificationListener = notificationListener;
         this.sessionName = sessionName;
         this.createdAt = System.currentTimeMillis();
         this.rows = Math.max(1, rows);
@@ -438,6 +455,28 @@ public class TerminalSession implements SessionCallback {
     }
 
     @Override
+    public byte[] onKittyNotification(byte[] metadata, byte[] payload) {
+        if (!notificationsEnabled || notificationListener == null || isClosed.get()
+                || metadata == null || payload == null || metadata.length > 2048 || payload.length > 4096) return null;
+        // Answer capability queries before the core processes a following DA1.
+        // This is pure parsing; never take the session lock inside a VT callback.
+        byte[] query = com.tinyhack.ssh.util.KittyNotificationManager.capabilityReply(metadata);
+        if (query != null) return query;
+        if (queuedNotifications.incrementAndGet() > 32) {
+            queuedNotifications.decrementAndGet();
+            return null;
+        }
+        mainHandler.post(() -> {
+            try {
+                if (!isClosed.get()) notificationListener.onNotification(this, metadata, payload);
+            } finally {
+                queuedNotifications.decrementAndGet();
+            }
+        });
+        return null;
+    }
+
+    @Override
     public void onClipboardWrite(String text) {
         mainHandler.post(() -> {
             Listener l = listener;
@@ -447,6 +486,7 @@ public class TerminalSession implements SessionCallback {
 
     @Override
     public void onSessionClosed(int exitCode) {
+        if (notificationListener != null) mainHandler.post(() -> notificationListener.onSessionClosed(this));
         isRunning.set(false);
         this.exitCode = exitCode;
         mainHandler.post(() -> {
