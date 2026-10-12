@@ -1,11 +1,92 @@
 --- a/defines.h
 +++ b/defines.h
-@@ -592,7 +592,7 @@
- # define __attribute__(x)
- #endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
- 
+@@ -595 +595 @@
 -#if !defined(HAVE_ATTRIBUTE__SENTINEL__) && !defined(__sentinel__)
 +#if !defined(__ANDROID__) && !defined(HAVE_ATTRIBUTE__SENTINEL__) && !defined(__sentinel__)
- # define __sentinel__
- #endif
- 
+--- a/misc.c
++++ b/misc.c
+@@ -561,0 +562,8 @@
++#ifdef __ANDROID__
++	const char *home_env = getenv("HOME");
++	if (home_env != NULL && *home_env != '\0') {
++		copy->pw_dir = xstrdup(home_env);
++	} else {
++		copy->pw_dir = xstrdup(pw->pw_dir == NULL ? "" : pw->pw_dir);
++	}
++#else
+@@ -562,0 +571 @@
++#endif
+@@ -1310,0 +1320 @@
++	const char *homedir = NULL;
+@@ -1316,3 +1326,12 @@
+-	} else if ((pw = getpwuid(uid)) == NULL) {
+-		error_f("No such uid %ld", (long)uid);
+-		goto out;
++		homedir = pw->pw_dir;
++	} else {
++#ifdef __ANDROID__
++		if ((homedir = getenv("HOME")) == NULL || *homedir == '\0')
++#endif
++		{
++			if ((pw = getpwuid(uid)) == NULL) {
++				error_f("No such uid %ld", (long)uid);
++				goto out;
++			}
++			homedir = pw->pw_dir;
++		}
+@@ -1322,3 +1341,3 @@
+-	slash = (len = strlen(pw->pw_dir)) == 0 || pw->pw_dir[len - 1] != '/';
+-
+-	if ((r = xasprintf(&s, "%s%s%s", pw->pw_dir,
++	slash = (len = strlen(homedir)) == 0 || homedir[len - 1] != '/';
++
++	if ((r = xasprintf(&s, "%s%s%s", homedir,
+--- a/openbsd-compat/explicit_bzero.c
++++ b/openbsd-compat/explicit_bzero.c
+@@ -41,0 +42,9 @@
++#ifdef __ANDROID__
++/* Bionic provides bzero as a function-like macro, not an addressable symbol. */
++static void
++ssh_android_bzero(void *p, size_t n)
++{
++	memset(p, 0, n);
++}
++static void (* volatile ssh_bzero)(void *, size_t) = ssh_android_bzero;
++#else
+@@ -42,0 +52 @@
++#endif
+--- a/openbsd-compat/getrrsetbyname.c
++++ b/openbsd-compat/getrrsetbyname.c
+@@ -51,0 +52,15 @@
++#if defined(__ANDROID__)
++#include "getrrsetbyname.h"
++int getrrsetbyname(const char *hostname, unsigned int rdclass,
++    unsigned int rdtype, unsigned int flags, struct rrsetinfo **res)
++{
++    (void)hostname; (void)rdclass; (void)rdtype; (void)flags;
++    if (res) *res = (void*)0;
++    return ERRSET_NODATA;
++}
++void freerrset(struct rrsetinfo *rrset)
++{
++    (void)rrset;
++}
++#else
++
+@@ -648,0 +664 @@
++#endif /* !defined(__ANDROID__) */
+--- a/openbsd-compat/xcrypt.c
++++ b/openbsd-compat/xcrypt.c
+@@ -115,0 +116,2 @@
++# elif defined(__ANDROID__)
++	crypted = NULL;
+--- a/ssh-agent.c
++++ b/ssh-agent.c
+@@ -2284,0 +2285,5 @@
++#ifdef __ANDROID__
++	/* Apps have no group privileges to drop; set*gid is blocked by seccomp. */
++	if (getegid() != getgid())
++		fatal("Refusing to run with elevated group privileges");
++#else
+@@ -2287,0 +2293 @@
++#endif

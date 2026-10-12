@@ -3,9 +3,9 @@ set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
 NDK_DIR=${ANDROID_NDK_HOME:-/home/yohanes/Android/Sdk/ndk/26.1.10909125}
-OPENSSH_DIR=${OPENSSH_DIR:-"$PROJECT_DIR/build-openssh/openssh-10.5p1"}
-OPENSSL_VERSION=3.5.8
-OPENSSL_SHA256=a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2
+OPENSSH_DIR=${OPENSSH_DIR:-"$PROJECT_DIR/build-openssh/openssh-10.6p1"}
+OPENSSL_VERSION=3.5.9
+OPENSSL_SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 OPENSSL_BUILD="$PROJECT_DIR/build-openssl"
 OPENSSL_SOURCE="$OPENSSL_BUILD/openssl-$OPENSSL_VERSION"
 OPENSSL_PREFIX="$OPENSSL_BUILD/install"
@@ -50,10 +50,16 @@ export ANDROID_NDK_ROOT="$NDK_DIR"
     make install_dev
 )
 
-if [[ ! -d "$OPENSSH_DIR" ]]; then
-    echo "Missing OpenSSH 10.5p1 source directory: $OPENSSH_DIR" >&2
-    exit 1
+if [[ "$OPENSSH_DIR" == "$PROJECT_DIR/build-openssh/openssh-10.6p1" ]]; then
+    mkdir -p "$PROJECT_DIR/build-openssh"
+    archive="$PROJECT_DIR/build-openssh/openssh-10.6p1.tar.gz"
+    if [[ ! -f "$archive" ]]; then
+        curl -fL https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.6p1.tar.gz -o "$archive"
+    fi
+    printf '%s  %s\n' a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39 "$archive" | sha256sum -c -
+    [[ -d "$OPENSSH_DIR" ]] || tar -xzf "$archive" -C "$PROJECT_DIR/build-openssh"
 fi
+[[ -d "$OPENSSH_DIR" ]] || { echo "Missing OpenSSH source: $OPENSSH_DIR" >&2; exit 1; }
 (
     cd "$OPENSSH_DIR"
     apply_patch_once "$PROJECT_DIR/patches/openssh-abstract-auth-socket.patch"

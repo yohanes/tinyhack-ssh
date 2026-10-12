@@ -6,25 +6,27 @@
 #   app/src/main/jniLibs/arm64-v8a/libmosh.so         (native mosh.pl replacement)
 #
 # Dependency stack (all statically linked into the binaries):
-#   zlib 1.3.1, ncurses 6.5 (tinfo only), protobuf 21.12 (host protoc + arm64 lib)
+#   zlib 1.3.2, ncurses 6.6 (tinfo only), protobuf 36.2 + Abseil (host protoc + arm64 lib)
 set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
 NDK_DIR=${MOSH_NDK_DIR:-/home/yohanes/Android/Sdk/ndk/26.1.10909125}
 TOOLCHAIN="$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin"
 BUILD="$PROJECT_DIR/build-mosh"
-HOST_PREFIX="$BUILD/host-install"
-TGT_PREFIX="$BUILD/install"
+HOST_PREFIX="$BUILD/host-install-36.2"
+TGT_PREFIX="$BUILD/install-36.2"
 MOSH_SRC="$PROJECT_DIR/mosh"
 JOBS=${JOBS:-$(nproc)}
 
-ZLIB_VERSION=1.3.1
-NCURSES_VERSION=6.5
-PROTOBUF_VERSION=21.12
+ZLIB_VERSION=1.3.2
+NCURSES_VERSION=6.6
+PROTOBUF_VERSION=36.2
+ABSEIL_VERSION=20250512.1
 
-ZLIB_SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
-NCURSES_SHA256=136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
-PROTOBUF_SHA256=2c6a36c7b5a55accae063667ef3c55f2642e67476d96d355ff0acb13dbb47f09
+ZLIB_SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
+NCURSES_SHA256=355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11
+PROTOBUF_SHA256=3d9642a662d10e68ebae5e53f14dcce5105684212d5078f8e0d47d1ab3ae6b64
+ABSEIL_SHA256=9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db
 
 export PATH="$TOOLCHAIN:$PATH"
 unset ANDROID_NDK_ROOT ANDROID_NDK_HOME
@@ -87,33 +89,38 @@ if [[ ! -f "$TGT_PREFIX/lib/libtinfo.a" ]]; then
 fi
 
 # ---------------------------------------------------------- protobuf (host+arm)
-# Host build provides protoc; the arm64 build provides libprotobuf.a.
+# Modern protobuf uses CMake and statically links Abseil and utf8_range.
+fetch "protobuf-$PROTOBUF_VERSION.tar.gz" "$PROTOBUF_SHA256" \
+    "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOBUF_VERSION/protobuf-$PROTOBUF_VERSION.tar.gz"
+fetch "abseil-cpp-$ABSEIL_VERSION.tar.gz" "$ABSEIL_SHA256" \
+    "https://github.com/abseil/abseil-cpp/archive/refs/tags/$ABSEIL_VERSION.tar.gz"
+[[ -d "$BUILD/protobuf-$PROTOBUF_VERSION" ]] || tar -xzf "$BUILD/protobuf-$PROTOBUF_VERSION.tar.gz" -C "$BUILD"
+[[ -d "$BUILD/abseil-cpp-$ABSEIL_VERSION" ]] || tar -xzf "$BUILD/abseil-cpp-$ABSEIL_VERSION.tar.gz" -C "$BUILD"
+protobuf_options=(
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
+    -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF
+    -Dprotobuf_WITH_ZLIB=OFF -Dprotobuf_FORCE_FETCH_DEPENDENCIES=ON
+    -DFETCHCONTENT_SOURCE_DIR_ABSL="$BUILD/abseil-cpp-$ABSEIL_VERSION"
+    -DCMAKE_INSTALL_LIBDIR=lib
+)
 if [[ ! -x "$HOST_PREFIX/bin/protoc" ]]; then
-    fetch "protobuf-all-$PROTOBUF_VERSION.tar.gz" "$PROTOBUF_SHA256" \
-        "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOBUF_VERSION/protobuf-all-$PROTOBUF_VERSION.tar.gz"
-    rm -rf "$BUILD/protobuf-$PROTOBUF_VERSION"
-    tar -xzf "$BUILD/protobuf-all-$PROTOBUF_VERSION.tar.gz" -C "$BUILD"
-    (
-        cd "$BUILD/protobuf-$PROTOBUF_VERSION"
-        ./configure --prefix="$HOST_PREFIX" --disable-shared --enable-static \
-            --without-zlib
-        make -j"$JOBS"
-        make install
-    )
+    cmake -S "$BUILD/protobuf-$PROTOBUF_VERSION" -B "$BUILD/protobuf-host-36.2" \
+        "${protobuf_options[@]}" -DCMAKE_INSTALL_PREFIX="$HOST_PREFIX"
+    cmake --build "$BUILD/protobuf-host-36.2" --parallel "$JOBS"
+    cmake --install "$BUILD/protobuf-host-36.2"
 fi
-
 if [[ ! -f "$TGT_PREFIX/lib/libprotobuf.a" ]]; then
-    (
-        cd "$BUILD/protobuf-$PROTOBUF_VERSION"
-        make distclean >/dev/null 2>&1 || true
-        CC="$CC" CXX="$CXX" AR=llvm-ar RANLIB=llvm-ranlib STRIP=llvm-strip \
-        CFLAGS='-O2 -fPIE' CXXFLAGS='-O2 -fPIE' LDFLAGS='-pie -Wl,-z,max-page-size=16384' \
-        ./configure --host=aarch64-linux-android --prefix="$TGT_PREFIX" \
-            --with-protoc="$HOST_PREFIX/bin/protoc" \
-            --disable-shared --enable-static --without-zlib
-        make -j"$JOBS"
-        make install
-    )
+    # NDK r26's Clang crashes on protobuf's statement-level always_inline
+    # attribute. Disable that optional optimization in the runtime and users.
+    cmake -S "$BUILD/protobuf-$PROTOBUF_VERSION" -B "$BUILD/protobuf-target-36.2" \
+        "${protobuf_options[@]}" -DCMAKE_INSTALL_PREFIX="$TGT_PREFIX" \
+        -DCMAKE_CXX_FLAGS=-DPROTOBUF_NO_INLINE_CALL \
+        -DCMAKE_TOOLCHAIN_FILE="$NDK_DIR/build/cmake/android.toolchain.cmake" \
+        -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 \
+        -DANDROID_STL=c++_static -Dprotobuf_BUILD_PROTOC_BINARIES=OFF \
+        -Dprotobuf_BUILD_LIBPROTOC=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    cmake --build "$BUILD/protobuf-target-36.2" --parallel "$JOBS"
+    cmake --install "$BUILD/protobuf-target-36.2"
 fi
 
 # ---------------------------------------------------------------- mosh-client
@@ -132,11 +139,12 @@ OPENSSL_PREFIX="$PROJECT_DIR/build-openssl/install"   # shared with build-openss
     unset PKG_CONFIG_PATH || true
 
     CC="$CC" CXX="$CXX" AR=llvm-ar RANLIB=llvm-ranlib STRIP=llvm-strip \
+    PROTOC="$HOST_PREFIX/bin/protoc" \
     CFLAGS="-O2 -fPIE -D__ANDROID__ -I$OPENSSL_PREFIX/include" \
-    CXXFLAGS="-O2 -fPIE -D__ANDROID__ -I$OPENSSL_PREFIX/include" \
+    CXXFLAGS="-O2 -fPIE -D__ANDROID__ -DPROTOBUF_NO_INLINE_CALL -I$OPENSSL_PREFIX/include" \
     LDFLAGS="-pie -Wl,-z,max-page-size=16384 -static-libstdc++ -L$TGT_PREFIX/lib -L$OPENSSL_PREFIX/lib -llog" \
     protobuf_CFLAGS="-I$TGT_PREFIX/include" \
-    protobuf_LIBS="-L$TGT_PREFIX/lib -lprotobuf" \
+    protobuf_LIBS="$(PKG_CONFIG_LIBDIR="$TGT_PREFIX/lib/pkgconfig" pkg-config --static --libs protobuf)" \
     ./configure --host=aarch64-linux-android \
         --prefix=/data/data/com.tinyhack.ssh/files/usr \
         --disable-server --disable-examples --disable-completion \
@@ -145,6 +153,8 @@ OPENSSL_PREFIX="$PROJECT_DIR/build-openssl/install"   # shared with build-openss
         --enable-static-zlib --with-zlib="$TGT_PREFIX" \
         --with-curses="$TGT_PREFIX"
 
+    # Regenerate all protocol messages with the matching host compiler.
+    rm -f src/protobufs/*.pb.cc src/protobufs/*.pb.h
     make -j"$JOBS"
 
     OUT="$PROJECT_DIR/app/src/main/jniLibs/arm64-v8a"

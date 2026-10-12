@@ -45,15 +45,16 @@ copy_source_tree() {
 # Complete source trees corresponding to every native component distributed in
 # the app. Generated configuration files are retained when they are source-like.
 copy_source_tree "$PROJECT_DIR/ghostty" "$STAGE/corresponding-source/ghostty"
-copy_source_tree "$PROJECT_DIR/build-bash/bash-5.2.37" "$STAGE/corresponding-source/bash-5.2.37"
+copy_source_tree "$PROJECT_DIR/build-bash/bash-5.3.20" "$STAGE/corresponding-source/bash-5.3.20"
 copy_source_tree "$PROJECT_DIR/build-busybox/busybox-1.38.0" "$STAGE/corresponding-source/busybox-1.38.0"
-copy_source_tree "$PROJECT_DIR/build-rsync/rsync-3.5.0" "$STAGE/corresponding-source/rsync-3.5.0"
-copy_source_tree "$PROJECT_DIR/cloudflared" "$STAGE/corresponding-source/cloudflared-2026.8.2"
-copy_source_tree "$PROJECT_DIR/build-openssh/openssh-10.5p1" "$STAGE/corresponding-source/openssh-10.5p1"
-copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.8" "$STAGE/corresponding-source/openssl-3.5.8"
-copy_source_tree "$PROJECT_DIR/build-mosh/zlib-1.3.1" "$STAGE/corresponding-source/zlib-1.3.1"
-copy_source_tree "$PROJECT_DIR/build-mosh/ncurses-6.5" "$STAGE/corresponding-source/ncurses-6.5"
-copy_source_tree "$PROJECT_DIR/build-mosh/protobuf-21.12" "$STAGE/corresponding-source/protobuf-21.12"
+copy_source_tree "$PROJECT_DIR/build-rsync/rsync-3.5.1" "$STAGE/corresponding-source/rsync-3.5.1"
+copy_source_tree "$PROJECT_DIR/build/cloudflared-2026.10.0" "$STAGE/corresponding-source/cloudflared-2026.10.0"
+copy_source_tree "$PROJECT_DIR/build-openssh/openssh-10.6p1" "$STAGE/corresponding-source/openssh-10.6p1"
+copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.9" "$STAGE/corresponding-source/openssl-3.5.9"
+copy_source_tree "$PROJECT_DIR/build-mosh/zlib-1.3.2" "$STAGE/corresponding-source/zlib-1.3.2"
+copy_source_tree "$PROJECT_DIR/build-mosh/ncurses-6.6" "$STAGE/corresponding-source/ncurses-6.6"
+copy_source_tree "$PROJECT_DIR/build-mosh/protobuf-36.2" "$STAGE/corresponding-source/protobuf-36.2"
+copy_source_tree "$PROJECT_DIR/build-mosh/abseil-cpp-20250512.1" "$STAGE/corresponding-source/abseil-cpp-20250512.1"
 
 {
     echo "Tinyhack SSH $VERSION corresponding source"

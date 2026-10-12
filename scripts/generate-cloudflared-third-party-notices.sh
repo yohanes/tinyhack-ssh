@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
-CLOUDFLARED_DIR="$PROJECT_DIR/cloudflared"
-OUTPUT="$PROJECT_DIR/licenses/cloudflared-2026.8.2-THIRD-PARTY-NOTICES.txt"
+CLOUDFLARED_DIR="$PROJECT_DIR/build/cloudflared-2026.10.0"
+OUTPUT="$PROJECT_DIR/licenses/cloudflared-2026.10.0-THIRD-PARTY-NOTICES.txt"
 ASSET_OUTPUT="$PROJECT_DIR/app/src/main/assets/licenses/$(basename "$OUTPUT")"
 TEMP_FILE=$(mktemp)
 trap 'rm -f "$TEMP_FILE"' EXIT
@@ -14,7 +14,7 @@ trap 'rm -f "$TEMP_FILE"' EXIT
 }
 
 {
-    echo "cloudflared 2026.8.2 third-party dependency notices"
+    echo "cloudflared 2026.10.0 third-party dependency notices"
     echo
     echo "Generated from the exact vendored dependency tree used by this build."
     echo

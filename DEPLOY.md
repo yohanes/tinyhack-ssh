@@ -46,8 +46,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 2
-versionName "1.0.1"
+versionCode 3
+versionName "1.0.2"
 ```
 
 Rules:
@@ -104,7 +104,7 @@ Run this for the first release and whenever Bash, BusyBox, rsync, OpenSSH,
 OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags change:
 
 ```bash
-JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
+GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
 ```
 
 The script rebuilds the bundled executables and verifies their ELF LOAD

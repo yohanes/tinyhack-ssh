@@ -15,11 +15,8 @@ for required in "$CC" "$STRIP"; do
 done
 mkdir -p "$OUT"
 
-echo "Re-linking Bash for 16 KiB pages"
-rm -f "$PROJECT_DIR/build-bash/bash-5.2.37/bash"
-make -C "$PROJECT_DIR/build-bash/bash-5.2.37" -j"$JOBS" \
-    ADDON_LDFLAGS="$PAGE_LDFLAG"
-"$STRIP" "$PROJECT_DIR/build-bash/bash-5.2.37/bash" -o "$OUT/libbash.so"
+echo "Rebuilding Bash for 16 KiB pages"
+TINYHACK_SSH_NDK_DIR="$NDK_DIR" "$PROJECT_DIR/scripts/build-bash-android.sh"
 
 echo "Re-linking BusyBox for 16 KiB pages"
 BUSYBOX_DIR="$PROJECT_DIR/build-busybox/busybox-1.38.0"
@@ -53,15 +50,15 @@ make -C "$PROJECT_DIR/build-busybox/busybox-1.38.0" -j"$JOBS" \
     EXTRA_LDFLAGS="$PAGE_LDFLAG"
 "$STRIP" "$PROJECT_DIR/build-busybox/busybox-1.38.0/busybox" -o "$OUT/libbusybox.so"
 
-echo "Re-linking rsync for 16 KiB pages"
-rm -f "$PROJECT_DIR/build-rsync/rsync-3.5.0/rsync"
-make -C "$PROJECT_DIR/build-rsync/rsync-3.5.0" -j"$JOBS" \
-    CC="$CC" LDFLAGS="-pie $PAGE_LDFLAG"
-"$STRIP" "$PROJECT_DIR/build-rsync/rsync-3.5.0/rsync" -o "$OUT/librsync.so"
+echo "Rebuilding rsync for 16 KiB pages"
+TINYHACK_SSH_NDK_DIR="$NDK_DIR" "$PROJECT_DIR/scripts/build-rsync-android.sh"
 
 echo "Rebuilding OpenSSH and Mosh for 16 KiB pages"
 ANDROID_NDK_HOME="$NDK_DIR" "$PROJECT_DIR/scripts/build-openssh-android.sh"
 MOSH_NDK_DIR="$NDK_DIR" "$PROJECT_DIR/scripts/build-mosh-android.sh"
+
+echo "Rebuilding cloudflared for 16 KiB pages"
+"$PROJECT_DIR/scripts/build-cloudflared-android.sh"
 
 echo "Verifying bundled ELF LOAD alignment"
 failed=0

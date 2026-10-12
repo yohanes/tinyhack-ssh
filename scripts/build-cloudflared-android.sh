@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
-CLOUDFLARED_DIR="$PROJECT_DIR/cloudflared"
+CLOUDFLARED_DIR=${CLOUDFLARED_DIR:-"$PROJECT_DIR/build/cloudflared-2026.10.0"}
 OUT_DIR="$PROJECT_DIR/app/src/main/jniLibs/arm64-v8a"
 OUT="$OUT_DIR/libcloudflared.so"
 # Use explicit NDK 26.1; ignore stale ANDROID_NDK_HOME pointing to missing r25b
@@ -22,8 +22,8 @@ version_at_least() {
 }
 
 GO_VERSION=$(go env GOVERSION | sed 's/^go//')
-if ! version_at_least "$GO_VERSION" "1.26.7"; then
-    echo "Go 1.26.7 or newer is required; found Go $GO_VERSION" >&2
+if ! version_at_least "$GO_VERSION" "1.27.2"; then
+    echo "Go 1.27.2 or newer is required; found Go $GO_VERSION" >&2
     exit 1
 fi
 
@@ -45,6 +45,11 @@ apply_patch_once() {
     fi
 }
 
+# Obtain the pinned release without overwriting older, patched source trees.
+if [[ ! -d "$CLOUDFLARED_DIR" ]]; then
+    git clone --depth 1 --branch 2026.10.0 https://github.com/cloudflare/cloudflared.git "$CLOUDFLARED_DIR"
+fi
+
 # Apply Android browser fix if not already present
 (
     cd "$CLOUDFLARED_DIR"
@@ -57,8 +62,8 @@ apply_patch_once() {
 
     # The build uses vendored modules. Refresh them when the pinned security
     # versions have changed, then fail closed if an older version is present.
-    if ! grep -q '^# golang.org/x/crypto v0.55.0$' vendor/modules.txt \
-            || ! grep -q '^# github.com/klauspost/compress v1.18.7$' vendor/modules.txt; then
+    if ! grep -q '^# golang.org/x/crypto v0.58.0$' vendor/modules.txt \
+            || ! grep -q '^# github.com/klauspost/compress v1.20.1$' vendor/modules.txt; then
         echo "Refreshing cloudflared vendored dependencies..."
         GOFLAGS=-mod=mod go mod tidy
         go mod vendor
@@ -66,12 +71,12 @@ apply_patch_once() {
 
     CRYPTO_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' golang.org/x/crypto)
     COMPRESS_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' github.com/klauspost/compress)
-    if ! version_at_least "${CRYPTO_VERSION#v}" "0.55.0"; then
-        echo "golang.org/x/crypto v0.55.0 or newer is required; found $CRYPTO_VERSION" >&2
+    if ! version_at_least "${CRYPTO_VERSION#v}" "0.58.0"; then
+        echo "golang.org/x/crypto v0.58.0 or newer is required; found $CRYPTO_VERSION" >&2
         exit 1
     fi
-    if ! version_at_least "${COMPRESS_VERSION#v}" "1.18.7"; then
-        echo "github.com/klauspost/compress v1.18.7 or newer is required; found $COMPRESS_VERSION" >&2
+    if ! version_at_least "${COMPRESS_VERSION#v}" "1.20.1"; then
+        echo "github.com/klauspost/compress v1.20.1 or newer is required; found $COMPRESS_VERSION" >&2
         exit 1
     fi
 )

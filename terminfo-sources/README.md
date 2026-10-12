@@ -10,4 +10,4 @@ tic -x -o app/src/main/assets/usr/share/terminfo terminfo-sources/<name>.terminf
 The Ghostty entries also originate from `ghostty/src/terminfo/`. The Kitty
 entries retain the upstream names and are distributed under Kitty's GPLv3
 terms; `xterm-256color` is distributed under the ncurses license included in
-`licenses/ncurses-6.5.COPYING`.
+`licenses/ncurses-6.6.COPYING`.

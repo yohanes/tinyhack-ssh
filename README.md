@@ -14,12 +14,12 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 
 - **Ghostty Native Core**: Embedded libghostty terminal engine providing accurate VT sequence parsing, reflow, colors, and styling. Profiles use `TERM=xterm-256color` by default and can explicitly enable `TERM=xterm-kitty`; matching terminfo entries are bundled via `TERMINFO`.
 - **Optional Kitty Graphics Protocol**: Per-profile opt-in for image placements composited onto bounded cached bitmaps by z-layer. It is disabled by default to limit memory and untrusted remote-output capabilities.
-- **Embedded GNU Bash Shell (5.2.37)**: Full interactive shell with GNU Readline, history management, persistent `~/.bashrc`, aliases, auto-wrap multi-line prompts, and programmable tab-completion.
+- **Embedded GNU Bash Shell (5.3.20)**: Full interactive shell with GNU Readline, history management, persistent `~/.bashrc`, aliases, auto-wrap multi-line prompts, and programmable tab-completion.
 - **Embedded BusyBox Suite (1.38.0)**: Over 270 user-space POSIX command-line utilities (`grep`, `sed`, `awk`, `find`, `tar`, `gzip`, `bzip2`, `xz`, `unzip`, `vi`, `less`, `tree`, `cal`, `bc`, `kill`, `pgrep`, `pkill`, `top`, `ps`, `nc`, `wget`, `curl`, etc.) enabled for non-root execution.
-- **Embedded OpenSSH Suite (10.5p1 + OpenSSL 3.5.8 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
-- **Embedded rsync (3.5.0)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
+- **Embedded OpenSSH Suite (10.6p1 + OpenSSL 3.5.9 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
+- **Embedded rsync (3.5.1)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
 - **Embedded Mosh (1.4.0)**: Roaming/low-latency remote terminal with local echo prediction (`mosh [user@]host`; UDP survives Wi-Fi changes and sleep). Ships with a native launcher replacing mosh.pl.
-- **Embedded cloudflared (2026.8+)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
+- **Embedded cloudflared (2026.10.0)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
 - **SSH Key Management UI**:
   - Generate Ed25519, RSA (4096-bit), and ECDSA security keys (`id_ecdsa_sk`, backed by the Android Keystore with StrongBox/TEE and biometric authorization).
   - Import existing private/public keys.
@@ -179,7 +179,16 @@ Then `ssh ssh-cf` from any local shell works. For Service Tokens, export
 starting SSH; do not put credentials in `~/.ssh/config` or process arguments.
 
 **Building `cloudflared`:**
+Requires Go 1.27.2 or newer. The build pins cloudflared 2026.10.0 and refreshes
+its Android patches and vendored security dependencies.
+
 ```bash
-./scripts/build-cloudflared-android.sh   # GOOS=android CGO_ENABLED=1, patches applied, outputs libcloudflared.so
+GOTOOLCHAIN=go1.27.2 ./scripts/build-cloudflared-android.sh   # GOOS=android CGO_ENABLED=1, patches applied, outputs libcloudflared.so
 ./gradlew assembleFdroidDebug
 ```
+
+Native userland can be rebuilt with `GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh`.
+Bash uses the GNU 5.3 release plus official patches 001–020; its Android
+Readline fallback and rsync’s existing data-directory compatibility behavior
+are retained in `patches/`. Mosh 1.4.0 links OpenSSL 3.5.9 LTS, zlib 1.3.2,
+ncurses 6.6, and protobuf 36.2 with protobuf’s pinned Abseil dependency.

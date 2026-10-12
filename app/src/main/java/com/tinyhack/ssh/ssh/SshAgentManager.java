@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Manages embedded ssh-agent lifecycle and key operations.
- * Uses native libssh-agent.so / libssh-add.so (OpenSSH 10.5p1) built for Android arm64.
+ * Uses native libssh-agent.so / libssh-add.so (OpenSSH 10.6p1) built for Android arm64.
  * Socket at {@code filesDir/agent.sock} and env {@code SSH_AUTH_SOCK} is injected into
  * new terminal sessions via TerminalService.
  *

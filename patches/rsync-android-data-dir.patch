@@ -1,0 +1,11 @@
+--- a/options.c
++++ b/options.c
+@@ -131,7 +131,7 @@
+ int keep_partial = 0;
+ int safe_symlinks = 0;
+ int copy_unsafe_links = 0;
+-int insecure_links = 0;
++int insecure_links = 1;
+ int munge_symlinks = 0;
+ int use_secure_symlinks = 0;
+ int size_only = 0;

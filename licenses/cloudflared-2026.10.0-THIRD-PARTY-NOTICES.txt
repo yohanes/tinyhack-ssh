@@ -1,4 +1,4 @@
-cloudflared 2026.8.2 third-party dependency notices
+cloudflared 2026.10.0 third-party dependency notices
 
 Generated from the exact vendored dependency tree used by this build.
 
@@ -6999,7 +6999,7 @@ gopkg.in/natefinch/lumberjack.v2/LICENSE
 ===============================================================================
 The MIT License (MIT)
 
-Copyright (c) 2014 Nate Finch
+Copyright (c) 2014 Nate Finch 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -7399,3 +7399,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ===============================================================================
+
