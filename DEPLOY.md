@@ -46,8 +46,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 3
-versionName "1.0.2"
+versionCode 4
+versionName "1.0.3"
 ```
 
 Rules:
@@ -104,8 +104,9 @@ When terminal-core code changes, run `scripts/build-ghostty-android.sh` with
 Zig 0.16.0 and the matching Ghostty source snapshot. This applies the tracked
 OSC 99 patch and installs the archive/header used by the Gradle build.
 
-Run this for the first release and whenever Bash, BusyBox, rsync, OpenSSH,
-OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags change:
+Run this for the first release and whenever Bash, BusyBox, curl, rsync,
+OpenSSH, OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags
+change:
 
 ```bash
 GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
@@ -142,7 +143,7 @@ adb -s 59HYAIAECAIFL7HM shell am start -W \
 Manually test at minimum:
 
 1. Start a local shell and run ordinary commands.
-2. Confirm SSH and Mosh start correctly.
+2. Confirm `curl --version`, an HTTPS request, SSH, and Mosh work correctly.
 3. Create, switch, and close terminal sessions.
 4. Put the app in the background and reopen it from its notification.
 5. Use the notification Exit action and confirm sessions close.
@@ -234,7 +235,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-sha256sum -c release/tinyhack-ssh-1.0.0-source.tar.xz.sha256
+sha256sum -c release/tinyhack-ssh-1.0.3-source.tar.xz.sha256
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -242,8 +243,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.0.0-source.tar.xz
-release/tinyhack-ssh-1.0.0-source.tar.xz.sha256
+release/tinyhack-ssh-1.0.3-source.tar.xz
+release/tinyhack-ssh-1.0.3-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish

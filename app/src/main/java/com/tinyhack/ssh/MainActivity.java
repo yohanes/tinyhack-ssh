@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     private static final String PREF_PENDING_CONNECT_PROFILE = "pending_connect_profile_id";
     private static final String PREF_NOTIFICATION_DISCLOSURE_SHOWN = "notification_disclosure_shown";
     private static final String PREF_FULLSCREEN_STATUS_BAR = "fullscreen_show_status_bar";
+    private static final String PREF_PROFILE_FULLSCREEN_PREFIX = "profile_fullscreen_";
 
     private TerminalView terminalView;
     private ExtraKeysView extraKeysView;
@@ -567,6 +568,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
             updateTitle(session.getDisplayTitle());
             // Ensure current index correct
             terminalService.setCurrentSession(session);
+            restoreFullscreenForSession(session);
         }
         refreshSessionsList();
         updateSessionClosedUi();
@@ -585,6 +587,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
             target.setListener(this);
             terminalView.attachSession(target);
             updateTitle(target.getDisplayTitle());
+            restoreFullscreenForSession(target);
         }
         refreshSessionsList();
         updateSessionClosedUi();
@@ -598,6 +601,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         session.setListener(this);
         terminalView.attachSession(session);
         updateTitle(session.getDisplayTitle());
+        restoreFullscreenForSession(session);
         refreshSessionsList();
         updateSessionClosedUi();
         Toast.makeText(this, "New session created", Toast.LENGTH_SHORT).show();
@@ -611,6 +615,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         session.setListener(this);
         terminalView.attachSession(session);
         updateTitle(session.getDisplayTitle());
+        restoreFullscreenForSession(session);
         refreshSessionsList();
         updateSessionClosedUi();
         Toast.makeText(this, "Connecting: " + profile.getName(), Toast.LENGTH_SHORT).show();
@@ -642,7 +647,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         refreshProfilesDrawer();
         refreshSessionsList();
         // Re-assert immersive state (system bars can reappear after returning from another app)
-        if (fullscreenMode) setFullscreen(true);
+        if (fullscreenMode) setFullscreen(true, false, false);
         if (terminalView != null) {
             terminalView.reloadPersistedFont();
             terminalView.requestFocus();
@@ -1061,8 +1066,21 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     }
 
     private void setFullscreen(boolean enabled) {
+        setFullscreen(enabled, true, true);
+    }
+
+    private void setFullscreen(boolean enabled, boolean showToast, boolean persistForProfile) {
         boolean changed = fullscreenMode != enabled;
         fullscreenMode = enabled;
+        if (persistForProfile && terminalView != null) {
+            TerminalSession session = terminalView.getSession();
+            String profileId = session != null ? session.getProfileId() : null;
+            if (profileId != null && !profileId.isEmpty()) {
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                        .putBoolean(PREF_PROFILE_FULLSCREEN_PREFIX + profileId, enabled)
+                        .apply();
+            }
+        }
         if (toolbar != null) {
             toolbar.setVisibility(enabled ? View.GONE : View.VISIBLE);
         }
@@ -1094,10 +1112,19 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
             }
             decor.setSystemUiVisibility(flags);
         }
-        if (changed) {
+        if (changed && showToast) {
             Toast.makeText(this, enabled ? "Fullscreen enabled" : "Fullscreen disabled", Toast.LENGTH_SHORT).show();
         }
         updateSessionClosedUi();
+    }
+
+    /** Restore the last fullscreen choice for a profile; local sessions default to normal mode. */
+    private void restoreFullscreenForSession(TerminalSession session) {
+        String profileId = session != null ? session.getProfileId() : null;
+        boolean enabled = profileId != null && !profileId.isEmpty()
+                && getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        .getBoolean(PREF_PROFILE_FULLSCREEN_PREFIX + profileId, false);
+        setFullscreen(enabled, false, false);
     }
 
     private void updateTitle(String title) {
@@ -1291,6 +1318,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
                 session.setListener(this);
                 terminalView.attachSession(session);
                 updateTitle(session.getDisplayTitle());
+                restoreFullscreenForSession(session);
             }
             refreshSessionsList();
             updateSessionClosedUi();

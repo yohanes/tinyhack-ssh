@@ -36,7 +36,7 @@ copy_source_tree() {
         --exclude='*.o' --exclude='*.a' --exclude='*.so' --exclude='*.d' \
         --exclude='*.cmd' --exclude='*.log' --exclude='*.tmp' \
         --exclude='busybox' --exclude='busybox_unstripped*' \
-        --exclude='bash' --exclude='rsync' --exclude='ssh' --exclude='scp' \
+        --exclude='bash' --exclude='curl' --exclude='rsync' --exclude='ssh' --exclude='scp' \
         --exclude='sftp' --exclude='ssh-add' --exclude='ssh-agent' \
         --exclude='ssh-keygen' --exclude='ssh-keyscan' \
         -cf - . | tar -C "$destination" -xf -
@@ -48,6 +48,7 @@ copy_source_tree "$PROJECT_DIR/ghostty" "$STAGE/corresponding-source/ghostty"
 copy_source_tree "$PROJECT_DIR/build-bash/bash-5.3.20" "$STAGE/corresponding-source/bash-5.3.20"
 copy_source_tree "$PROJECT_DIR/build-busybox/busybox-1.38.0" "$STAGE/corresponding-source/busybox-1.38.0"
 copy_source_tree "$PROJECT_DIR/build-rsync/rsync-3.5.1" "$STAGE/corresponding-source/rsync-3.5.1"
+copy_source_tree "$PROJECT_DIR/build-curl/curl-8.23.0" "$STAGE/corresponding-source/curl-8.23.0"
 copy_source_tree "$PROJECT_DIR/build/cloudflared-2026.10.0" "$STAGE/corresponding-source/cloudflared-2026.10.0"
 copy_source_tree "$PROJECT_DIR/build-openssh/openssh-10.6p1" "$STAGE/corresponding-source/openssh-10.6p1"
 copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.9" "$STAGE/corresponding-source/openssl-3.5.9"

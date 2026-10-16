@@ -24,13 +24,13 @@ import com.tinyhack.ssh.terminal.KeyCodes;
  *           (MENU is an action button that opens the quick menu, not a mode;
  *            one of the modes after it is active)
  *   bottom: keys for the selected mode
- *     MOD    ESC TAB CTRL ALT INS DEL CTRL-C CTRL-\
+ *     MOD    ESC TAB CTRL ALT INS DEL CTRL-C CTRL-D CTRL-\ CTRL-Z
  *     SYM    - _ / ' " ; \ | ~ ( ) * > < #
  *     FN     F1..F12
  *     NAV    ↑ ↓ ← → HOME END PGUP PGDN
  *     VIM    ESC : / $ ^ % :q :w :wq :q!  (":"-commands send ESC first)
  *     EMACS  CTRL ALT C-x C-g Alt-X C-c C-u
- *     TMUX   CTRL-B ↑ ↓ ← → NextWin PrevWin Tree
+ *     TMUX   CTRL-B Index ↑ ↓ ← → NextWin PrevWin Tree Detach
  *     OSC133 PrevPrompt NextPrompt Copy Output
  */
 public class ExtraKeysView extends LinearLayout implements TerminalView.ModifierStateListener {
@@ -192,7 +192,7 @@ public class ExtraKeysView extends LinearLayout implements TerminalView.Modifier
         updateButtonVisual(btn, currentMode == mode);
     }
 
-    /** ESC TAB CTRL ALT INS DEL CTRL-C CTRL-\ */
+    /** ESC TAB CTRL ALT INS DEL CTRL-C CTRL-D CTRL-\ CTRL-Z */
     private void buildModRow() {
         escButton = addKeyButton(keysRow, "ESC", v -> {
             if (terminalView != null) {
@@ -228,7 +228,9 @@ public class ExtraKeysView extends LinearLayout implements TerminalView.Modifier
             if (terminalView != null) terminalView.sendSpecialKey(KeyCodes.GHOSTTY_KEY_DELETE, 0, null);
         });
         addKeyButton(keysRow, "CTRL-C", v -> sendBytes(0x03));
+        addKeyButton(keysRow, "CTRL-D", v -> sendBytes(0x04));
         addKeyButton(keysRow, "CTRL-\\", v -> sendBytes(0x1c));
+        addKeyButton(keysRow, "CTRL-Z", v -> sendBytes(0x1a));
     }
 
     /** - _ / ' " ; \ | ~ ( ) * > < # (shell-history frequency order) */
@@ -334,9 +336,10 @@ public class ExtraKeysView extends LinearLayout implements TerminalView.Modifier
         addKeyButton(keysRow, "C-u", v -> sendBytes(0x15));
     }
 
-    /** CTRL-B, arrows, NextWin/PrevWin/Tree (prefix = 0x02 + key) */
+    /** CTRL-B, Index (CTRL-Q), arrows, NextWin/PrevWin/Tree/Detach. */
     private void buildTmuxRow() {
         addKeyButton(keysRow, "CTRL-B", v -> sendBytes(0x02));
+        addKeyButton(keysRow, "Index", v -> sendBytes(0x11));
         addArrowButtons(keysRow);
         addKeyButton(keysRow, "NextWin", v -> sendBytes(0x02, 'n'));
         addKeyButton(keysRow, "PrevWin", v -> sendBytes(0x02, 'p'));

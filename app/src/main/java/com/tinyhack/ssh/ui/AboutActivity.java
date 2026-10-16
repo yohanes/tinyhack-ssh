@@ -36,6 +36,7 @@ public class AboutActivity extends AppCompatActivity {
         {"Tinyhack SSH (this app) — MIT License", "LICENSE"},
         {"GNU Bash 5.3.20 — GPLv3", "bash-5.3.20.COPYING.GPLv3"},
         {"BusyBox 1.38.0 — GPLv2", "busybox-1.38.0.LICENSE.GPLv2"},
+        {"curl 8.23.0 — curl license", "curl-8.23.0.LICENSE.curl"},
         {"Mosh 1.4.0 — GPLv3", "mosh-1.4.0.COPYING.GPLv3"},
         {"OpenSSH 10.6p1 — BSD-style", "openssh-10.6p1.LICENCE"},
         {"OpenSSL 3.5.9 — Apache-2.0", "openssl-3.5.9.LICENSE.Apache-2.0"},

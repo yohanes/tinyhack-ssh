@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tinyhack SSH — Terminal emulator for Android with Ghostty core</title>
-<meta name="description" content="Tinyhack SSH is a high-performance Android terminal emulator powered by the Ghostty VT core, with an embedded GNU/BSD userland, OpenSSH suite, SSH agent, rsync, and a Termux-like touch UX.">
+<meta name="description" content="Tinyhack SSH is a high-performance Android terminal emulator powered by the Ghostty VT core, with an embedded GNU/BSD userland, curl, OpenSSH suite, SSH agent, rsync, and a Termux-like touch UX.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,7 +26,7 @@
   <div class="container">
     <div class="badge">Android 14+ &middot; arm64-v8a</div>
     <h1>Tinyhack SSH</h1>
-    <p class="tagline">A terminal emulator for Android powered by the <strong>Ghostty</strong> VT&nbsp;core, with GNU Bash, BusyBox, OpenSSH, and rsync bundled — plus an embedded SSH agent that supports FIDO2 security keys.</p>
+    <p class="tagline">A terminal emulator for Android powered by the <strong>Ghostty</strong> VT&nbsp;core, with GNU Bash, BusyBox, curl, OpenSSH, and rsync bundled — plus an embedded SSH agent that supports FIDO2 security keys.</p>
     <p class="muted">Tinyhack SSH is an independent, unofficial Android port. It uses the open-source Ghostty VT library and is not affiliated with or endorsed by the Ghostty project.</p>
     <a class="btn" href="https://play.google.com/store/apps/details?id=com.tinyhack.ssh">Get it on Google Play</a>
     <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh">View source</a>
@@ -38,7 +38,7 @@
     <h2>Features</h2>
     <div class="features">
       <div class="feature"><h3>Ghostty VT Core</h3><p>Accurate VT100/XTerm emulation, true color, pixel-aligned monospace rendering, and optional per-profile Kitty graphics.</p></div>
-      <div class="feature"><h3>Bundled Userland</h3><p>GNU Bash 5.2, BusyBox (270+ utilities), OpenSSH 10.5, and rsync 3.5 — no root required.</p></div>
+      <div class="feature"><h3>Bundled Userland</h3><p>GNU Bash 5.3.20, BusyBox 1.38.0 (270+ utilities), curl 8.23.0 with HTTPS, OpenSSH 10.6p1, and rsync 3.5.1 — no root required.</p></div>
       <div class="feature"><h3>SSH Agent + Security Keys</h3><p>Embedded ssh-agent with Ed25519/RSA support and FIDO2 <code>-sk</code> keys backed by the Android Keystore and biometrics.</p></div>
       <div class="feature"><h3>Multi-Session &amp; Profiles</h3><p>Run many sessions at once; save LOCAL/SSH connection profiles and connect with one tap.</p></div>
       <div class="feature"><h3>Termux-like UX</h3><p>Extra-keys toolbar, three-finger menus, scrollback and selection; sessions keep running in the background when you close the app.</p></div>

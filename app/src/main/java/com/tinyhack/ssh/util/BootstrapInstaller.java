@@ -22,12 +22,14 @@ public class BootstrapInstaller {
         File usrDir = new File(filesDir, "usr");
         File binDir = new File(usrDir, "bin");
         File etcSshDir = new File(usrDir, "etc/ssh");
+        File etcSslCertsDir = new File(usrDir, "etc/ssl/certs");
         File tmpDir = new File(usrDir, "tmp");
 
         homeDir.mkdirs();
         sshDir.mkdirs();
         binDir.mkdirs();
         etcSshDir.mkdirs();
+        etcSslCertsDir.mkdirs();
         tmpDir.mkdirs();
 
         try {
@@ -50,6 +52,7 @@ public class BootstrapInstaller {
         } catch (IOException e) {
             SafeLog.e(TAG, "Failed to copy assets", e);
         }
+        installAndroidCaBundle(new File(etcSslCertsDir, "ca-certificates.crt"));
 
         File bashrc = new File(homeDir, ".bashrc");
         if (!bashrc.exists()) {
@@ -77,7 +80,7 @@ public class BootstrapInstaller {
 
         // Link native library executables into files/usr/bin
         String nativeLibDir = context.getApplicationInfo().nativeLibraryDir;
-        String[] binaries = {"busybox", "bash", "ssh", "ssh-keygen", "ssh-keyscan", "scp", "sftp", "rsync", "ssh-agent", "ssh-add", "mosh", "mosh-client", "cloudflared"};
+        String[] binaries = {"busybox", "bash", "curl", "ssh", "ssh-keygen", "ssh-keyscan", "scp", "sftp", "rsync", "ssh-agent", "ssh-add", "mosh", "mosh-client", "cloudflared"};
         java.util.Set<String> standaloneBinaries = new java.util.HashSet<>(java.util.Arrays.asList(binaries));
         standaloneBinaries.add("sh");
 
@@ -207,6 +210,56 @@ public class BootstrapInstaller {
                 fos.write(snippet.getBytes(StandardCharsets.UTF_8));
             }
         } catch (Exception ignored) {}
+    }
+
+    /**
+     * OpenSSL's hashed-directory lookup is not compatible with the filenames
+     * used by Android's Conscrypt CA store. Build a PEM bundle from the
+     * device's read-only system roots so curl validates HTTPS with the same
+     * current root set without shipping a stale private copy in the APK.
+     */
+    private static void installAndroidCaBundle(File destination) {
+        File[] sourceDirs = {
+            new File("/apex/com.android.conscrypt/cacerts"),
+            new File("/system/etc/security/cacerts")
+        };
+        File[] certFiles = null;
+        for (File sourceDir : sourceDirs) {
+            File[] candidates = sourceDir.listFiles((dir, name) ->
+                    name.matches("[0-9a-fA-F]{8}\\.[0-9]+"));
+            if (candidates != null && candidates.length > 0) {
+                certFiles = candidates;
+                break;
+            }
+        }
+        if (certFiles == null) {
+            SafeLog.e(TAG, "Android system CA store is unavailable");
+            return;
+        }
+
+        java.util.Arrays.sort(certFiles,
+                java.util.Comparator.comparing(File::getName));
+        File temporary = new File(destination.getParentFile(), destination.getName() + ".tmp");
+        try (FileOutputStream out = new FileOutputStream(temporary)) {
+            byte[] buffer = new byte[8192];
+            for (File certFile : certFiles) {
+                try (InputStream in = new java.io.FileInputStream(certFile)) {
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                    }
+                    out.write('\n');
+                }
+            }
+            out.getFD().sync();
+            if (!temporary.renameTo(destination)) {
+                throw new IOException("Could not replace " + destination);
+            }
+            Os.chmod(destination.getAbsolutePath(), 0644);
+        } catch (Exception e) {
+            temporary.delete();
+            SafeLog.e(TAG, "Failed to install Android CA bundle", e);
+        }
     }
 
     private static void copyAssets(Context context, String assetPath, File targetDir) throws IOException {

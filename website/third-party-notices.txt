@@ -17,11 +17,12 @@ requirements; this notice does not attempt to reclassify linked components as
 |---|---|---|---|---|
 | GNU Bash | 5.3.20 | GPLv3 | `licenses/bash-5.3.20.COPYING.GPLv3` | upstream tarball + `build-bash/` |
 | BusyBox | 1.38.0 | GPLv2 **only** | `licenses/busybox-1.38.0.LICENSE.GPLv2` | upstream tarball + `build-busybox/` |
+| curl | 8.23.0 | curl license (permissive) | `licenses/curl-8.23.0.LICENSE.curl` | upstream tarball + `build-curl/`, `scripts/build-curl-android.sh` |
 | rsync | 3.5.1 | GPLv3 | `licenses/rsync-3.5.1.COPYING.GPLv3` | upstream tarball + `build-rsync/` |
 | cloudflared (Cloudflare Access tunnel client) | 2026.10.0 | Apache-2.0 plus vendored dependency licenses | `licenses/cloudflared-2026.10.0.LICENSE.Apache-2.0`, `licenses/cloudflared-2026.10.0-THIRD-PARTY-NOTICES.txt` | exact vendored source + `scripts/build-cloudflared-android.sh`, `patches/cloudflared-android.patch` |
 | Go runtime (linked into cloudflared) | 1.27.2 | BSD-3-Clause | `licenses/go-1.27.2.LICENSE.BSD-3` | https://go.dev/dl/ |
 | OpenSSH (ssh, scp, sftp, ssh-add, ssh-agent, ssh-keygen, ssh-keyscan) | 10.6p1 | BSD-style (permissive) | `licenses/openssh-10.6p1.LICENCE` | upstream tarball + `build-openssh/`, `scripts/build-openssh-android.sh`, `patches/` |
-| OpenSSL (statically linked into OpenSSH and mosh binaries) | 3.5.9 LTS | Apache-2.0 | `licenses/openssl-3.5.9.LICENSE.Apache-2.0` | upstream tarball + `build-openssl/` |
+| OpenSSL (statically linked into curl, OpenSSH, and mosh binaries) | 3.5.9 LTS | Apache-2.0 | `licenses/openssl-3.5.9.LICENSE.Apache-2.0` | upstream tarball + `build-openssl/`, `scripts/build-openssl-android.sh` |
 | Mosh (mosh-client + native `mosh` launcher) | 1.4.0 | GPLv3 | `licenses/mosh-1.4.0.COPYING.GPLv3` | `mosh/` (vendored) + `scripts/build-mosh-android.sh`, `scripts/mosh-launcher.cc` |
 | protobuf (statically linked into mosh-client) | 36.2 | BSD-3-Clause | `licenses/protobuf-36.2.LICENSE.BSD-3` | upstream tarball + `build-mosh/` |
 | Abseil (statically linked into mosh-client via protobuf) | 20250512.1 (protobuf-pinned dependency) | Apache-2.0 | `licenses/abseil-cpp-20250512.1.LICENSE.Apache-2.0` | upstream tarball + `build-mosh/` |

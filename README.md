@@ -15,7 +15,8 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Ghostty Native Core**: Embedded libghostty terminal engine providing accurate VT sequence parsing, reflow, colors, and styling. Profiles use `TERM=xterm-256color` by default and can explicitly enable `TERM=xterm-kitty`; matching terminfo entries are bundled via `TERMINFO`.
 - **Optional Kitty Graphics Protocol**: Per-profile opt-in for image placements composited onto bounded cached bitmaps by z-layer. It is disabled by default to limit memory and untrusted remote-output capabilities.
 - **Embedded GNU Bash Shell (5.3.20)**: Full interactive shell with GNU Readline, history management, persistent `~/.bashrc`, aliases, auto-wrap multi-line prompts, and programmable tab-completion.
-- **Embedded BusyBox Suite (1.38.0)**: Over 270 user-space POSIX command-line utilities (`grep`, `sed`, `awk`, `find`, `tar`, `gzip`, `bzip2`, `xz`, `unzip`, `vi`, `less`, `tree`, `cal`, `bc`, `kill`, `pgrep`, `pkill`, `top`, `ps`, `nc`, `wget`, `curl`, etc.) enabled for non-root execution.
+- **Embedded BusyBox Suite (1.38.0)**: Over 270 user-space POSIX command-line utilities (`grep`, `sed`, `awk`, `find`, `tar`, `gzip`, `bzip2`, `xz`, `unzip`, `vi`, `less`, `tree`, `cal`, `bc`, `kill`, `pgrep`, `pkill`, `top`, `ps`, `nc`, `wget`, etc.) enabled for non-root execution.
+- **Embedded curl (8.23.0 + OpenSSL 3.5.9 LTS)**: Full standalone `curl` with HTTPS, Android's system CA trust store, redirects, compression, uploads, and common transfer protocols; no root or separate installation required.
 - **Embedded OpenSSH Suite (10.6p1 + OpenSSL 3.5.9 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
 - **Embedded rsync (3.5.1)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
 - **Embedded Mosh (1.4.0)**: Roaming/low-latency remote terminal with local echo prediction (`mosh [user@]host`; UDP survives Wi-Fi changes and sleep). Ships with a native launcher replacing mosh.pl.
@@ -191,10 +192,17 @@ GOTOOLCHAIN=go1.27.2 ./scripts/build-cloudflared-android.sh   # GOOS=android CGO
 ./gradlew assembleFdroidDebug
 ```
 
+To rebuild just the curl/OpenSSL pair, use:
+
+```bash
+TINYHACK_SSH_NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125" ./scripts/build-openssl-android.sh
+TINYHACK_SSH_NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125" ./scripts/build-curl-android.sh
+```
+
 Native userland can be rebuilt with `GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh`.
 Bash uses the GNU 5.3 release plus official patches 001–020; its Android
 Readline fallback and rsync’s existing data-directory compatibility behavior
-are retained in `patches/`. Mosh 1.4.0 links OpenSSL 3.5.9 LTS, zlib 1.3.2,
+are retained in `patches/`. curl 8.23.0 and Mosh 1.4.0 link OpenSSL 3.5.9 LTS; Mosh also links zlib 1.3.2,
 ncurses 6.6, and protobuf 36.2 with protobuf’s pinned Abseil dependency.
 
 To send an OSC 99 notification from an enabled profile:

@@ -57,6 +57,9 @@ echo "Rebuilding OpenSSH and Mosh for 16 KiB pages"
 ANDROID_NDK_HOME="$NDK_DIR" "$PROJECT_DIR/scripts/build-openssh-android.sh"
 MOSH_NDK_DIR="$NDK_DIR" "$PROJECT_DIR/scripts/build-mosh-android.sh"
 
+echo "Rebuilding curl for 16 KiB pages"
+TINYHACK_SSH_NDK_DIR="$NDK_DIR" "$PROJECT_DIR/scripts/build-curl-android.sh"
+
 echo "Rebuilding cloudflared for 16 KiB pages"
 "$PROJECT_DIR/scripts/build-cloudflared-android.sh"
 

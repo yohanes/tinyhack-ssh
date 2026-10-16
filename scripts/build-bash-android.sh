@@ -32,6 +32,8 @@ elif ! patch --dry-run --reverse -p1 < "$compat" >/dev/null 2>&1; then
     exit 1
 fi
 export PATH="$TOOLCHAIN:$PATH"
+# Cross-compilation cannot run Bash's getcwd probe. Force the working Android
+# libc implementation instead of the fallback that traverses protected /data.
 CC=aarch64-linux-android34-clang AR=llvm-ar RANLIB=llvm-ranlib \
 CFLAGS='-O2 -fPIE -D__ANDROID__ -D_GNU_SOURCE' \
 LDFLAGS='-pie -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384' \
@@ -39,6 +41,7 @@ LDFLAGS='-pie -Wl,-z,relro -Wl,-z,now -Wl,-z,max-page-size=16384' \
     --without-bash-malloc --enable-readline --enable-history --enable-bang-history \
     --enable-alias --enable-job-control --enable-progcomp --disable-nls \
     bash_cv_job_control_missing=present bash_cv_sys_named_pipes=present \
+    bash_cv_getcwd_malloc=yes \
     bash_cv_must_reinstall_sighandlers=no bash_cv_func_sigsetjmp=present \
     bash_cv_printf_a_format=yes bash_cv_snprintf_broken=no bash_cv_vsnprintf_broken=no \
     bash_cv_termcap_lib=gnutermcap bash_cv_func_ctype_nonascii=yes \
