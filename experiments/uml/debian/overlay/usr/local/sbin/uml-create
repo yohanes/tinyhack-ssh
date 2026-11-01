@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+user=$1
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y --no-install-recommends sudo e2fsprogs
+resize2fs /dev/ubda
+useradd --create-home --shell /bin/bash "$user"
+usermod -aG sudo "$user"
+printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$user" > /etc/sudoers.d/uml-user
+chmod 440 /etc/sudoers.d/uml-user
+visudo -cf /etc/sudoers.d/uml-user
+printf '%s\n' "$user" > /etc/uml-user
+apt-get clean
+sync
+echo UML_ENV_CREATE_OK

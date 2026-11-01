@@ -470,23 +470,11 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         }
     }
 
-    private static final int PASTE_WARN_CHARS = 128;
-
     private void pasteFromClipboard() {
         if (terminalView == null) return;
         String text = terminalView.getClipboardText();
         if (text == null || text.isEmpty()) {
             Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (text.length() > PASTE_WARN_CHARS) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Paste large clipboard?")
-                    .setMessage("The clipboard contains " + text.length()
-                            + " characters. Paste everything into the terminal?")
-                    .setPositiveButton("Paste", (d, w) -> terminalView.pasteText(text))
-                    .setNegativeButton("Cancel", null)
-                    .show();
             return;
         }
         terminalView.pasteText(text);

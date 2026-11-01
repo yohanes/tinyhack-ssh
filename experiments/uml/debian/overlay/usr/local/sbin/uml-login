@@ -1,0 +1,5 @@
+#!/bin/sh
+if [ -s /etc/uml-user ]; then
+    exec /bin/su - "$(cat /etc/uml-user)"
+fi
+exec /bin/bash -l

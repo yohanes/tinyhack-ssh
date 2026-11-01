@@ -171,6 +171,26 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
         layout.addView(spinnerType);
 
         // Local fields
+        TextView umlLabel = new TextView(ctx);
+        umlLabel.setText("Local environment");
+        layout.addView(umlLabel);
+        Spinner spinnerUml = new Spinner(ctx);
+        java.util.ArrayList<String> umlNames = new java.util.ArrayList<>();
+        umlNames.add("Android shell");
+        java.io.File envRoot = new java.io.File(getFilesDir(), "home/uml/envs");
+        java.io.File[] environments = envRoot.listFiles();
+        if (environments != null) {
+            java.util.Arrays.sort(environments, java.util.Comparator.comparing(java.io.File::getName));
+            for (java.io.File environment : environments) {
+                if (new java.io.File(environment, "ready").isFile()
+                        && new java.io.File(environment, "disk.ext4").isFile()) umlNames.add(environment.getName());
+            }
+        }
+        String selectedUml = editing.getUmlEnvironment();
+        if (selectedUml != null && !selectedUml.isEmpty() && !umlNames.contains(selectedUml)) umlNames.add(selectedUml);
+        spinnerUml.setAdapter(new ArrayAdapter<>(ctx, android.R.layout.simple_spinner_dropdown_item, umlNames));
+        spinnerUml.setSelection(selectedUml == null ? 0 : Math.max(0, umlNames.indexOf(selectedUml)));
+        layout.addView(spinnerUml);
         TextView shellLabel = new TextView(ctx);
         shellLabel.setText("Shell (optional, e.g. /data/data/.../usr/bin/bash)");
         shellLabel.setTextColor(0xFFAAAAAA);
@@ -382,15 +402,18 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             boolean isSsh = t == 1;
             int visSsh = isRemote ? View.VISIBLE : View.GONE;
             int visLocal = isRemote ? View.GONE : View.VISIBLE;
+            umlLabel.setVisibility(visLocal);
+            spinnerUml.setVisibility(visLocal);
+            int visShell = !isRemote && spinnerUml.getSelectedItemPosition() == 0 ? View.VISIBLE : View.GONE;
             hostLabel.setText(t == 2 ? "Host" : "SSH Host");
             portLabel.setText(t == 2 ? "SSH Port (bootstrap)" : "SSH Port");
             keyLabel.setText("SSH Key (name in ~/.ssh)");
             sshArgsLabel.setText(t == 2 ? "Extra Mosh Args (optional)" : "Extra SSH Args (optional)");
             editSshArgs.setHint(t == 2 ? "--predict=always --port=60000:61000" : "-o ConnectTimeout=10");
-            shellLabel.setVisibility(visLocal);
-            editShell.setVisibility(visLocal);
-            cwdLabel.setVisibility(visLocal);
-            editCwd.setVisibility(visLocal);
+            shellLabel.setVisibility(visShell);
+            editShell.setVisibility(visShell);
+            cwdLabel.setVisibility(visShell);
+            editCwd.setVisibility(visShell);
             envLabel.setVisibility(visLocal);
             editEnv.setVisibility(visLocal);
 
@@ -431,6 +454,10 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             }
         };
         updateVisibility.run();
+        spinnerUml.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { updateVisibility.run(); }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
         spinnerType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { updateVisibility.run(); }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
@@ -462,6 +489,7 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             editing.setOsc52ClipboardEnabled(checkOsc52.isChecked());
             editing.setTerminalNotificationsEnabled(checkNotifications.isChecked());
             if (type == ConnectionProfile.Type.LOCAL) {
+                editing.setUmlEnvironment(spinnerUml.getSelectedItemPosition() == 0 ? null : (String) spinnerUml.getSelectedItem());
                 String sh = editShell.getText().toString().trim();
                 editing.setShell(sh.isEmpty() ? null : sh);
                 String cwd = editCwd.getText().toString().trim();

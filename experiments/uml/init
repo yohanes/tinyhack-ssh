@@ -1,0 +1,28 @@
+#!/bin/sh
+export PATH=/bin:/sbin
+export HOME=/root
+export TERM=xterm-256color
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+# CONFIG_DEVTMPFS_MOUNT normally mounts this before init.
+grep -q ' /dev devtmpfs ' /proc/mounts || mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /tmp
+if [ -d /sys/class/net/vec0 ]; then
+    ip link set lo up
+    ip link set vec0 up
+    ip addr add 10.0.2.15/24 dev vec0
+    ip route add default via 10.0.2.2
+    echo 'nameserver 1.1.1.1' > /etc/resolv.conf
+    echo TINYHACK_UML_NETWORK_CONFIGURED
+fi
+echo TINYHACK_UML_BOOT_OK
+uname -a
+id
+echo "Guest PID: $$"
+echo "ARM64 guest filesystem write test" >/root/uml-test.txt
+cat /root/uml-test.txt
+/bin/sh -c 'echo TINYHACK_UML_FORK_EXEC_OK'
+echo "TinyHack ARM64 UML guest. Type poweroff -f to stop."
+exec /bin/setsid /bin/cttyhack /bin/sh

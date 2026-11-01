@@ -1,0 +1,24 @@
+commit 7edec4df1f66a709bf1398be6cab1226e66a9e94
+Author: GlassOnTin <GlassOnTin@users.noreply.github.com>
+Date:   Fri Sep 18 20:25:13 2026 +0100
+
+    um: vector: only complete NAPI when the poll had spare budget
+    
+    A poll that consumed its whole budget must return budget without
+    completing; core net code relies on work == budget to keep the NAPI
+    polled. vector_poll called napi_complete_done() at work_done == budget,
+    which can clear the scheduled state while work remains.
+
+diff --git a/arch/um/drivers/vector_kern.c b/arch/um/drivers/vector_kern.c
+index 2cc900554..083b99bb9 100644
+--- a/arch/um/drivers/vector_kern.c
++++ b/arch/um/drivers/vector_kern.c
+@@ -1177,7 +1177,7 @@ static int vector_poll(struct napi_struct *napi, int budget)
+ 
+ 	if (tx_enqueued || err > 0)
+ 		napi_schedule(napi);
+-	if (work_done <= budget)
++	if (work_done < budget)
+ 		napi_complete_done(napi, work_done);
+ 	return work_done;
+ }

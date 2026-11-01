@@ -55,21 +55,21 @@ public class TerminalSession implements SessionCallback {
     private final long createdAt;
     private int exitCode = -1;
 
-    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight) {
-        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, null, null, false, false);
+    public TerminalSession(String filesDir, String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight) {
+        this(filesDir, cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, null, null, false, false);
     }
 
-    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight, String profileId, String sessionName) {
-        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName, false, false);
+    public TerminalSession(String filesDir, String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight, String profileId, String sessionName) {
+        this(filesDir, cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName, false, false);
     }
 
-    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
+    public TerminalSession(String filesDir, String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
                            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled) {
-        this(cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName,
+        this(filesDir, cmd, cwd, argv, envp, rows, cols, cellWidth, cellHeight, profileId, sessionName,
                 kittyGraphicsEnabled, osc52ClipboardEnabled, false, null);
     }
 
-    public TerminalSession(String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
+    public TerminalSession(String filesDir, String cmd, String cwd, String[] argv, String[] envp, int rows, int cols, int cellWidth, int cellHeight,
                            String profileId, String sessionName, boolean kittyGraphicsEnabled, boolean osc52ClipboardEnabled,
                            boolean notificationsEnabled, NotificationListener notificationListener) {
         this.id = UUID.randomUUID().toString();
@@ -87,7 +87,7 @@ public class TerminalSession implements SessionCallback {
         this.renderFrame.ensureCapacity(this.cols, this.rows);
 
         this.sessionPtr = NativeBridge.nativeCreateSession(
-            cmd, cwd, argv, envp, this.rows, this.cols, this.cellWidth, this.cellHeight,
+            filesDir, cmd, cwd, argv, envp, this.rows, this.cols, this.cellWidth, this.cellHeight,
             kittyGraphicsEnabled, this
         );
 
@@ -140,7 +140,7 @@ public class TerminalSession implements SessionCallback {
 
     public synchronized void writePaste(String text) {
         if (isClosed.get() || sessionPtr == 0 || text == null) return;
-        NativeBridge.nativeWritePaste(sessionPtr, text);
+        NativeBridge.nativeWritePaste(sessionPtr, text.getBytes(StandardCharsets.UTF_8));
     }
 
     public synchronized void resize(int newRows, int newCols, int newCellWidth, int newCellHeight) {

@@ -319,7 +319,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 JNIEXPORT jlong JNICALL
 Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     JNIEnv* env, jclass clazz,
-    jstring jcmd, jstring jcwd,
+    jstring jfiles_dir, jstring jcmd, jstring jcwd,
     jobjectArray jargv, jobjectArray jenvp,
     jint rows, jint cols,
     jint cell_width, jint cell_height,
@@ -327,6 +327,10 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     jobject jcallback)
 {
     (void)clazz;
+    const char* files_chars = env->GetStringUTFChars(jfiles_dir, nullptr);
+    if (!files_chars) return 0;
+    const std::string files_dir(files_chars);
+    env->ReleaseStringUTFChars(jfiles_dir, files_chars);
     auto* session = new NativeSession();
     session->rows = static_cast<uint16_t>(rows > 0 ? rows : 24);
     session->cols = static_cast<uint16_t>(cols > 0 ? cols : 80);
@@ -421,15 +425,17 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     ioctl(session->ptm_fd, TIOCSWINSZ, &sz);
 
     // Prepare command and cwd strings
+    const std::string home_dir = files_dir + "/home";
+    const std::string prefix = files_dir + "/usr";
+    const std::string bash_path = prefix + "/bin/bash";
     std::string default_shell = "/system/bin/sh";
-    const char* bash_path = "/data/data/com.tinyhack.ssh/files/usr/bin/bash";
     bool is_default_bash = false;
-    if (!jcmd && access(bash_path, X_OK) == 0) {
+    if (!jcmd && access(bash_path.c_str(), X_OK) == 0) {
         default_shell = bash_path;
         is_default_bash = true;
     }
     const char* cmd_str = jcmd ? env->GetStringUTFChars(jcmd, nullptr) : default_shell.c_str();
-    const char* cwd_str = jcwd ? env->GetStringUTFChars(jcwd, nullptr) : "/data/data/com.tinyhack.ssh/files/home";
+    const char* cwd_str = jcwd ? env->GetStringUTFChars(jcwd, nullptr) : home_dir.c_str();
 
     // Prepare argv
     std::vector<char*> argv_list;
@@ -474,15 +480,15 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
     // xterm-256color capabilities.
     envp_list.push_back(strdup(kitty_graphics_enabled ? "TERM=xterm-kitty" : "TERM=xterm-256color"));
     envp_list.push_back(strdup("TERM_PROGRAM=ghostty"));
-    envp_list.push_back(strdup("GHOSTTY_BIN_DIR=/data/data/com.tinyhack.ssh/files/usr/bin"));
-    envp_list.push_back(strdup("TERMINFO=/data/data/com.tinyhack.ssh/files/usr/share/terminfo"));
+    envp_list.push_back(strdup(("GHOSTTY_BIN_DIR=" + prefix + "/bin").c_str()));
+    envp_list.push_back(strdup(("TERMINFO=" + prefix + "/share/terminfo").c_str()));
     envp_list.push_back(strdup("COLORTERM=truecolor"));
     envp_list.push_back(strdup("LANG=en_US.UTF-8"));
-    envp_list.push_back(strdup("SHELL=/data/data/com.tinyhack.ssh/files/usr/bin/bash"));
-    envp_list.push_back(strdup("PATH=/data/data/com.tinyhack.ssh/files/usr/bin:/system/bin:/system/xbin"));
-    envp_list.push_back(strdup("HOME=/data/data/com.tinyhack.ssh/files/home"));
-    envp_list.push_back(strdup("PREFIX=/data/data/com.tinyhack.ssh/files/usr"));
-    envp_list.push_back(strdup("TMPDIR=/data/data/com.tinyhack.ssh/files/usr/tmp"));
+    envp_list.push_back(strdup(("SHELL=" + bash_path).c_str()));
+    envp_list.push_back(strdup(("PATH=" + prefix + "/bin:/system/bin:/system/xbin").c_str()));
+    envp_list.push_back(strdup(("HOME=" + home_dir).c_str()));
+    envp_list.push_back(strdup(("PREFIX=" + prefix).c_str()));
+    envp_list.push_back(strdup(("TMPDIR=" + prefix + "/tmp").c_str()));
     envp_list.push_back(nullptr);
 
     pid_t pid = fork();
@@ -525,7 +531,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeCreateSession(
         }
 
         if (cwd_str && chdir(cwd_str) != 0) {
-            chdir("/data/data/com.tinyhack.ssh/files/home");
+            chdir(home_dir.c_str());
         }
 
         clearenv();
@@ -755,21 +761,33 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWriteKey(
 
 JNIEXPORT void JNICALL
 Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWritePaste(
-    JNIEnv* env, jclass clazz, jlong sessionPtr, jstring jtext)
+    JNIEnv* env, jclass clazz, jlong sessionPtr, jbyteArray jtext)
 {
     (void)clazz;
     auto* session = reinterpret_cast<NativeSession*>(sessionPtr);
     if (!session || session->is_closed.load() || session->ptm_fd < 0 || !jtext) return;
 
-    const char* text = env->GetStringUTFChars(jtext, nullptr);
-    if (!text) return;
-    size_t len = strlen(text);
-
+    const size_t len = static_cast<size_t>(env->GetArrayLength(jtext));
+    if (len == 0) return;
+    std::vector<char> text(len);
+    env->GetByteArrayRegion(jtext, 0, static_cast<jsize>(len),
+                           reinterpret_cast<jbyte*>(text.data()));
+    if (env->ExceptionCheck()) return;
     std::lock_guard<std::mutex> lock(session->session_mutex);
-    // Write text directly to pty
-    write(session->ptm_fd, text, len);
-
-    env->ReleaseStringUTFChars(jtext, text);
+    GhosttyTerminalModeConfig mode{GHOSTTY_MODE_BRACKETED_PASTE, false};
+    ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_MODE, &mode);
+    std::vector<char> encoded(len + 12); // bracketed paste prefix and suffix
+    size_t written = 0;
+    if (ghostty_paste_encode(text.data(), len, mode.value, encoded.data(),
+                            encoded.size(), &written) == GHOSTTY_SUCCESS) {
+        size_t offset = 0;
+        while (offset < written) {
+            const ssize_t count = write(session->ptm_fd, encoded.data() + offset, written - offset);
+            if (count < 0 && errno == EINTR) continue;
+            if (count <= 0) break;
+            offset += static_cast<size_t>(count);
+        }
+    }
 }
 
 static jobject create_argb_bitmap(JNIEnv* env, uint32_t width, uint32_t height) {

@@ -1,0 +1,3 @@
+Android host: 5.4.295-moto-gdaa2fa57da42
+Host security context: u:r:untrusted_app:s0:c130,c257,c512,c768
+uid=10386(u0_a386) gid=10386(u0_a386) groups=10386(u0_a386),3003(inet),9997(everybody),20386(u0_a386_cache),50386(all_a386) context=u:r:untrusted_app:s0:c130,c257,c512,c768

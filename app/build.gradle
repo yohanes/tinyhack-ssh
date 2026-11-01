@@ -4,15 +4,15 @@ plugins {
 
 android {
     namespace 'com.tinyhack.ssh'
-    compileSdk 36
+    compileSdk 37
     ndkVersion '26.1.10909125'
 
     defaultConfig {
         applicationId "com.tinyhack.ssh"
         minSdk 34
         targetSdk 36
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 5
+        versionName "1.0.4"
 
         externalNativeBuild {
             cmake {
@@ -52,6 +52,13 @@ android {
         }
     }
 
+    // Opt-in UML experiment: binaries never enter normal or release builds.
+    if (providers.gradleProperty('umlExperiment').isPresent()) {
+        buildTypes.debug.applicationIdSuffix = '.uml'
+        buildTypes.debug.versionNameSuffix = '-uml'
+        sourceSets.debug.jniLibs.srcDir rootProject.file('build/uml/jniLibs')
+    }
+
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
@@ -81,9 +88,7 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'com.google.android.material:material:1.14.0'
-    // 1.19 requires AGP 9.1/API 37; 1.17 is the latest stable compatible
-    // with the current stable AGP 8.13/API 36 toolchain.
-    implementation 'androidx.core:core:1.17.0'
+    implementation 'androidx.core:core:1.19.1'
     implementation 'androidx.lifecycle:lifecycle-runtime:2.11.0'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'

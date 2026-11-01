@@ -1,0 +1,136 @@
+/proc/self/uid_map not readable, assuming init namespace
+Can't use close_range() to ensure no files leaked by parent
+netlink unavailable, continuing without interface discovery
+IPv4: no external interface as template, use local mode
+Unable to open /proc/sys/net/ipv4/ip_local_port_range: Permission denied
+PASST_NO_SANDBOX set, skipping user namespace
+PASST_NO_SANDBOX set, skipping unneeded privilege drop
+MAC:
+    host: 9a:55:9a:55:9a:55
+    NAT to host 127.0.0.1: 10.0.2.2
+DHCP:
+    assign: 10.0.2.15
+    mask: 255.255.255.0
+    router: 10.0.2.2
+DNS:
+    1.1.1.1
+Inbound forwarding rules (HOST):
+Address space: host top 0x8000000000, stub at 0x7fffff4000, guest TASK_SIZE 0x7fc0000000
+Core dump limits :
+	soft - 0
+	hard - NONE
+Stub signal stack: 16384 bytes, host AT_MINSIGSTKSZ 4720
+Checking environment variables for a tempdir.../data/user/0/com.tinyhack.ssh.uml/files/home/uml/envs/finaltest/tmp
+Checking if /data/user/0/com.tinyhack.ssh.uml/files/home/uml/envs/finaltest/tmp is on tmpfs...no
+Warning: tempdir /data/user/0/com.tinyhack.ssh.uml/files/home/uml/envs/finaltest/tmp is not on tmpfs
+Checking PROT_EXEC mmap in /data/user/0/com.tinyhack.ssh.uml/files/home/uml/envs/finaltest/tmp...OK
+Checking close_range()...unavailable; closing by hand
+Checking the stub's cycle counter...OK
+Userspace mode: ptrace
+Checking that ptrace can change system call numbers...OK
+Checking syscall emulation for ptrace...Failed to bind neighbour notifier socket: Permission denied
+PASST_NO_SANDBOX set, skipping namespace/mount sandbox
+OK
+Linux version 7.2.0-rc4-g32e5e10b81d8-dirty (um@arm64) (Android (12470979, +pgo, +bolt, +lto, +mlgo, based on r522817c) clang version 18.0.3 (https://android.googlesource.com/toolchain/llvm-project d8003a456d14a3deb8054cdaa529ffbf02d9b262), LLD 18.0.3) #2 Thu Jan  1 00:00:00 UTC 1970
+random: crng init done
+Zone ranges:
+  Normal   [mem 0x0000000000000000-0x000000007fffffff]
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000000000-0x000000001fffffff]
+Initmem setup node 0 [mem 0x0000000000000000-0x000000001fffffff]
+Kernel command line: ubd0=/data/user/0/com.tinyhack.ssh.uml/files/home/uml/envs/finaltest/disk.ext4 root=/dev/ubda rw init=/init con=null con0=fd:0,fd:1 vec0:transport=fd,fd=3,mac=02:00:00:00:00:01 console=tty0
+printk: log buffer data + meta data: 16384 + 57344 = 73728 bytes
+Dentry cache hash table entries: 65536 (order: 5, 524288 bytes, linear)
+Inode-cache hash table entries: 32768 (order: 4, 262144 bytes, linear)
+Built 1 zonelists, mobility grouping on.  Total pages: 32768
+mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 64
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+clocksource: timer: mask: 0xffffffffffffffff max_cycles: 0x1cd42e205, max_idle_ns: 881590404426 ns
+Calibrating delay loop... 4567.04 BogoMIPS (lpj=22835200)
+Checking that host ptys support output SIGIO...Yes
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 2048 (order: 0, 16384 bytes, linear)
+Mountpoint-cache hash table entries: 2048 (order: 0, 16384 bytes, linear)
+VFS: Finished mounting rootfs on nullfs
+arm64: hwcap host 0x119fff/0x0 -> guest 0x1197ff/0x0 (masked out 0x800/0x0)
+Memory: 512736K/524288K available (4432K kernel code, 1326K rwdata, 1168K rodata, 178K init, 406K bss, 10192K reserved, 0K cma-reserved)
+devtmpfs: initialized
+posixtimers hash table entries: 512 (order: 0, 4096 bytes, linear)
+futex hash table entries: 256 (6144 bytes on 1 NUMA nodes, total 6 KiB, linear).
+NET: Registered PF_NETLINK/PF_ROUTE protocol family
+pps_core: LinuxPPS API ver. 1 registered
+pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+PTP clock support registered
+clocksource: Switched to clocksource timer
+VFS: Disk quotas dquot_6.6.0
+VFS: Dquot-cache hash table entries: 2048 (16384 bytes)
+NET: Registered PF_INET protocol family
+IP idents hash table entries: 8192 (order: 2, 65536 bytes, linear)
+tcp_listen_portaddr_hash hash table entries: 2048 (order: 0, 16384 bytes, linear)
+Table-perturb hash table entries: 65536 (order: 4, 262144 bytes, linear)
+TCP established hash table entries: 4096 (order: 1, 32768 bytes, linear)
+TCP bind hash table entries: 4096 (order: 2, 65536 bytes, linear)
+TCP: Hash tables configured (established 4096 bind 4096)
+UDP hash table entries: 256 (order: 0, 16384 bytes, linear)
+NET: Registered PF_UNIX/PF_LOCAL protocol family
+printk: legacy console [stderr0] disabled
+Checking host MADV_REMOVE support...OK
+mconsole (version 2) initialized on /data/user/0/com.tinyhack.ssh.uml/files/home/.uml/5QKBDT/mconsole
+workingset: timestamp_bits=62 (anon: 57) max_order=15 bucket_order=0 (anon: 0)
+io scheduler mq-deadline registered
+io scheduler kyber registered
+io scheduler bfq registered
+loop: module loaded
+tun: Universal TUN/TAP device driver, 1.6
+PPP generic driver version 2.4.2
+SLIP: version 0.8.4-NET3.019-NEWTTY (dynamic channels, max=256).
+NET: Registered PF_PACKET protocol family
+Initialized stdio console driver
+Console initialized on /dev/tty0
+printk: legacy console [tty0] enabled
+Initializing software serial port version 1
+printk: legacy console [mc-1] enabled
+winch_thread : TIOCSCTTY failed on fd 1 err = 1
+EXT4-fs (ubda): mounted filesystem cd1808fc-0923-4a7d-983a-57fad0c4e715 r/w with ordered data mode. Quota mode: none.
+VFS: Mounted root (ext4 filesystem) on device 98:0.
+devtmpfs: mounted
+VFS: Pivoted into new rootfs
+Run /init as init process
+init started: BusyBox v1.38.0 (2026-11-01 21:07:54 +07)
+starting pid 42, tty '': '/usr/local/sbin/uml-boot'
+TINYHACK_DEBIAN_BOOT_OK
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.7
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+Use apt-get update and apt-get install PACKAGE to extend Debian.
+Use poweroff for a clean shutdown.
+starting pid 59, tty '/dev/tty0': '/usr/local/sbin/uml-login'
+[?2004h]0;alice@debian-uml: ~[01;32malice@debian-uml[00m:[01;34m~[00m$ id; sudo -n id; hostname; pwd;  df -h /; test ! -e /home/user/env-test.txt && echo  ISOLATED_OK
+[?2004luid=1000(alice) gid=1000(alice) groups=1000(alice),27(sudo)
+uid=0(root) gid=0(root) groups=0(root)
+debian-uml
+/home/alice
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       464M  109M  343M  25% /
+ISOLATED_OK
+[?2004h]0;alice@debian-uml: ~[01;32malice@debian-uml[00m:[01;34m~[00m$ [Ksudo poweroff
+[?2004lstarting pid 77, tty '': '/bin/sync'
+starting pid 78, tty '': '/bin/umount -a -r'
+[?2004h]0;alice@debian-uml: ~[01;32malice@debian-uml[00m:[01;34m~[00m$ EXT4-fs (ubda): re-mounted cd1808fc-0923-4a7d-983a-57fad0c4e715 ro.
+The system is going down NOW!
+Sent SIGTERM to all processes
+
+Session terminated, killing shell...Sent SIGKILL to all processes
+Requesting system poweroff
+reboot: Power down
+

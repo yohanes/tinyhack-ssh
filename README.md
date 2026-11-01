@@ -2,6 +2,10 @@
 
 A high-performance Android terminal emulator powered by the native **Ghostty** terminal core, featuring full VT100/XTerm emulation, true color rendering, an embedded GNU/BSD userland with the complete OpenSSH suite, multi-session management, connection profiles, and a Termux-like touch UX.
 
+Version 1.0.4 refreshes the terminal core and security dependencies. See
+[release notes and advisory scope](CHANGELOG.md). Re-run the Android cloudflared
+security audit with `bash scripts/audit-cloudflared.sh`.
+
 Tinyhack SSH is an independent, unofficial Android port. It uses the open-source Ghostty VT library and is not affiliated with or endorsed by the Ghostty project.
 
 [Download Tinyhack SSH on Google Play](https://play.google.com/store/apps/details?id=com.tinyhack.ssh)
@@ -20,7 +24,7 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Embedded OpenSSH Suite (10.6p1 + OpenSSL 3.5.9 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
 - **Embedded rsync (3.5.1)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
 - **Embedded Mosh (1.4.0)**: Roaming/low-latency remote terminal with local echo prediction (`mosh [user@]host`; UDP survives Wi-Fi changes and sleep). Ships with a native launcher replacing mosh.pl.
-- **Embedded cloudflared (2026.10.0)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
+- **Embedded cloudflared (2026.10.7)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
 - **SSH Key Management UI**:
   - Generate Ed25519, RSA (4096-bit), and ECDSA security keys (`id_ecdsa_sk`, backed by the Android Keystore with StrongBox/TEE and biometric authorization).
   - Import existing private/public keys.
@@ -184,11 +188,11 @@ Then `ssh ssh-cf` from any local shell works. For Service Tokens, export
 starting SSH; do not put credentials in `~/.ssh/config` or process arguments.
 
 **Building `cloudflared`:**
-Requires Go 1.27.2 or newer. The build pins cloudflared 2026.10.0 and refreshes
+Requires Go 1.27.3 or newer. The build pins cloudflared 2026.10.7 and refreshes
 its Android patches and vendored security dependencies.
 
 ```bash
-GOTOOLCHAIN=go1.27.2 ./scripts/build-cloudflared-android.sh   # GOOS=android CGO_ENABLED=1, patches applied, outputs libcloudflared.so
+GOTOOLCHAIN=go1.27.3 ./scripts/build-cloudflared-android.sh   # GOOS=android CGO_ENABLED=1, patches applied, outputs libcloudflared.so
 ./gradlew assembleFdroidDebug
 ```
 
@@ -199,11 +203,11 @@ TINYHACK_SSH_NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125" ./scripts/build-openssl-a
 TINYHACK_SSH_NDK_DIR="$ANDROID_HOME/ndk/26.1.10909125" ./scripts/build-curl-android.sh
 ```
 
-Native userland can be rebuilt with `GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh`.
+Native userland can be rebuilt with `GOTOOLCHAIN=go1.27.3 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh`.
 Bash uses the GNU 5.3 release plus official patches 001–020; its Android
 Readline fallback and rsync’s existing data-directory compatibility behavior
 are retained in `patches/`. curl 8.23.0 and Mosh 1.4.0 link OpenSSL 3.5.9 LTS; Mosh also links zlib 1.3.2,
-ncurses 6.6, and protobuf 36.2 with protobuf’s pinned Abseil dependency.
+ncurses 6.6, and protobuf 36.2 with Abseil 20260817.0.
 
 To send an OSC 99 notification from an enabled profile:
 
@@ -217,8 +221,8 @@ opening the terminal. Replies are written only to the originating live session.
 Clients can discover supported features with `OSC 99;i=probe:p=?;ST`.
 The protocol is documented at <https://sw.kovidgoyal.net/kitty/desktop-notifications/>.
 
-Rebuild the VT core with `scripts/build-ghostty-android.sh` (Zig 0.16.0 and the
-existing Ghostty source snapshot are required). The tracked
+Rebuild the VT core with `scripts/build-ghostty-android.sh` (Zig 0.17.0 and the
+pinned Ghostty v1.4.0 source are required). The tracked
 `patches/ghostty-osc99.patch` forwards parsed OSC 99 chunks through a dedicated
 C callback; the Android bridge keeps notification effects outside the VT lock.
 

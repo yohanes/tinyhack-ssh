@@ -1,0 +1,58 @@
+diff --git a/tools/um-arm64/harness/umnet.c b/tools/um-arm64/harness/umnet.c
+index 445be478f..876297891 100644
+--- a/tools/um-arm64/harness/umnet.c
++++ b/tools/um-arm64/harness/umnet.c
+@@ -53,14 +53,14 @@
+ #define PFX		4		/* qemu socket protocol length prefix */
+ 
+ static pid_t passt_pid;
++static pid_t uml_pid;
++static volatile sig_atomic_t stopping;
+ static int verbose;			/* --verbose: log every frame both ways */
+ 
+ static void reap(int sig)
+ {
+ 	(void)sig;
+-	if (passt_pid > 0)
+-		kill(passt_pid, SIGTERM);
+-	_exit(0);
++	stopping = 1;
+ }
+ 
+ /* Read exactly n bytes, or return 0 on EOF / -1 on error. */
+@@ -117,9 +117,18 @@ static void pump(int uml_fd, int passt_fd)
+ 	pfd[1].fd = passt_fd;
+ 
+ 	for (;;) {
++		siginfo_t child = {0};
++		/* A SOCK_DGRAM peer closing does not produce POLLHUP. Check
++		 * children without reaping so shutdown cannot strand the pump. */
++		if (stopping ||
++		    (!waitid(P_PID, uml_pid, &child, WEXITED | WNOHANG | WNOWAIT) && child.si_pid))
++			return;
++		memset(&child, 0, sizeof(child));
++		if (!waitid(P_PID, passt_pid, &child, WEXITED | WNOHANG | WNOWAIT) && child.si_pid)
++			return;
+ 		pfd[0].events = pfd[1].events = POLLIN;
+ 
+-		if (poll(pfd, 2, -1) < 0) {
++		if (poll(pfd, 2, 250) < 0) {
+ 			if (errno == EINTR)
+ 				continue;
+ 			return;
+@@ -187,7 +196,6 @@ int main(int argc, char **argv)
+ 	int status, rc = 0;
+ 	char vecarg[128];
+ 	char **child;
+-	pid_t uml_pid;
+ 
+ 	for (i = 1; i < argc; i++) {
+ 		if (!strcmp(argv[i], "--verbose"))
+@@ -366,6 +374,7 @@ int main(int argc, char **argv)
+ 	 * between a diagnosis and a guess.
+ 	 */
+ 	kill(passt_pid, SIGTERM);
++	kill(uml_pid, SIGTERM);
+ 
+ 	if (waitpid(uml_pid, &status, 0) < 0) {
+ 		perror("umnet: waitpid");

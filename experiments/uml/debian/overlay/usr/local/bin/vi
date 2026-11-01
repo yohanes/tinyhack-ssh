@@ -1,0 +1,6 @@
+#!/bin/sh
+# Prefer a Debian-managed editor once vim-tiny/vim is installed.
+if [ -x /usr/bin/vi ]; then
+    exec /usr/bin/vi "$@"
+fi
+exec /usr/local/libexec/busybox vi "$@"

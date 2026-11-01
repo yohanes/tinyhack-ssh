@@ -23,7 +23,7 @@ source "$TINYHACK_SSH_RELEASE_ENV_FILE"
 
 export TINYHACK_SSH_KEYSTORE_PASSWORD TINYHACK_SSH_KEY_PASSWORD
 export ANDROID_HOME=${ANDROID_HOME:-/home/yohanes/Android/Sdk}
-GRADLE_BIN=${TINYHACK_SSH_GRADLE_BIN:-/home/yohanes/apps/gradle-8.13/bin/gradle}
+GRADLE_BIN=${TINYHACK_SSH_GRADLE_BIN:-"$PROJECT_DIR/gradlew"}
 OUTPUT_DIR="$PROJECT_DIR/release"
 UNSIGNED_AAB="$PROJECT_DIR/app/build/outputs/bundle/playRelease/app-play-release.aab"
 SIGNED_AAB="$OUTPUT_DIR/tinyhack-ssh-play-release.aab"

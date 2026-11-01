@@ -33,6 +33,7 @@ copy_source_tree() {
     mkdir -p "$destination"
     tar -C "$source" \
         --exclude='.git' --exclude='.zig-cache' --exclude='zig-out' \
+        --exclude='*.rej' --exclude='*.orig' \
         --exclude='*.o' --exclude='*.a' --exclude='*.so' --exclude='*.d' \
         --exclude='*.cmd' --exclude='*.log' --exclude='*.tmp' \
         --exclude='busybox' --exclude='busybox_unstripped*' \
@@ -45,17 +46,18 @@ copy_source_tree() {
 # Complete source trees corresponding to every native component distributed in
 # the app. Generated configuration files are retained when they are source-like.
 copy_source_tree "$PROJECT_DIR/ghostty" "$STAGE/corresponding-source/ghostty"
+git -C "$PROJECT_DIR/ghostty" rev-parse HEAD > "$STAGE/corresponding-source/ghostty/.tinyhack-source-commit"
 copy_source_tree "$PROJECT_DIR/build-bash/bash-5.3.20" "$STAGE/corresponding-source/bash-5.3.20"
 copy_source_tree "$PROJECT_DIR/build-busybox/busybox-1.38.0" "$STAGE/corresponding-source/busybox-1.38.0"
 copy_source_tree "$PROJECT_DIR/build-rsync/rsync-3.5.1" "$STAGE/corresponding-source/rsync-3.5.1"
 copy_source_tree "$PROJECT_DIR/build-curl/curl-8.23.0" "$STAGE/corresponding-source/curl-8.23.0"
-copy_source_tree "$PROJECT_DIR/build/cloudflared-2026.10.0" "$STAGE/corresponding-source/cloudflared-2026.10.0"
+copy_source_tree "$PROJECT_DIR/build/cloudflared-2026.10.7" "$STAGE/corresponding-source/cloudflared-2026.10.7"
 copy_source_tree "$PROJECT_DIR/build-openssh/openssh-10.6p1" "$STAGE/corresponding-source/openssh-10.6p1"
 copy_source_tree "$PROJECT_DIR/build-openssl/openssl-3.5.9" "$STAGE/corresponding-source/openssl-3.5.9"
 copy_source_tree "$PROJECT_DIR/build-mosh/zlib-1.3.2" "$STAGE/corresponding-source/zlib-1.3.2"
 copy_source_tree "$PROJECT_DIR/build-mosh/ncurses-6.6" "$STAGE/corresponding-source/ncurses-6.6"
 copy_source_tree "$PROJECT_DIR/build-mosh/protobuf-36.2" "$STAGE/corresponding-source/protobuf-36.2"
-copy_source_tree "$PROJECT_DIR/build-mosh/abseil-cpp-20250512.1" "$STAGE/corresponding-source/abseil-cpp-20250512.1"
+copy_source_tree "$PROJECT_DIR/build-mosh/abseil-cpp-20260817.0" "$STAGE/corresponding-source/abseil-cpp-20260817.0"
 
 {
     echo "Tinyhack SSH $VERSION corresponding source"
@@ -64,6 +66,10 @@ copy_source_tree "$PROJECT_DIR/build-mosh/abseil-cpp-20250512.1" "$STAGE/corresp
     echo "Ghostty commit: $(git -C "$PROJECT_DIR/ghostty" rev-parse HEAD)"
     echo
     echo "Build entry points: scripts/build-ghostty-android.sh, scripts/rebuild-userland-16kb.sh, and the Gradle build."
+    echo "Restore corresponding-source/ghostty to ghostty/; restore other trees under"
+    echo "build-bash/, build-busybox/, build-rsync/, build-curl/, build-openssh/,"
+    echo "build-openssl/, build-mosh/, and build/ (cloudflared), keeping their directory names."
+    echo "Toolchains: Zig 0.17.0, Go 1.27.3, NDK 26.1.10909125, Gradle wrapper 9.8.2."
     echo "Contact: tinyhack-ssh@tinyhack.com"
 } > "$STAGE/SOURCE-MANIFEST.txt"
 
@@ -71,6 +77,6 @@ ARCHIVE="$OUTPUT_DIR/$BUNDLE_NAME.tar.xz"
 # Parallel level-3 compression keeps this large corresponding-source bundle
 # practical to regenerate while remaining widely readable as .tar.xz.
 tar -C "$WORK_DIR" -I 'xz -T0 -3' -cf "$ARCHIVE" "$BUNDLE_NAME"
-sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+(cd "$OUTPUT_DIR" && sha256sum "$BUNDLE_NAME.tar.xz") > "$ARCHIVE.sha256"
 echo "Source archive: $ARCHIVE"
 echo "Checksum:       $ARCHIVE.sha256"

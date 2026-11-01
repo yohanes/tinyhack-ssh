@@ -6,6 +6,7 @@ public class NativeBridge {
     }
 
     public static native long nativeCreateSession(
+        String filesDir,
         String cmd,
         String cwd,
         String[] argv,
@@ -25,7 +26,7 @@ public class NativeBridge {
     public static native void nativeResize(long sessionPtr, int rows, int cols, int cellWidth, int cellHeight);
     public static native void nativeScroll(long sessionPtr, int type, int deltaOrRow);
     public static native void nativeWriteKey(long sessionPtr, int ghosttyKey, int action, int mods, String text);
-    public static native void nativeWritePaste(long sessionPtr, String text);
+    public static native void nativeWritePaste(long sessionPtr, byte[] text);
     public static native boolean nativeUpdateRender(
         long sessionPtr,
         RenderFrame frame,

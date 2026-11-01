@@ -49,6 +49,7 @@ public class ConnectionProfile {
 
     // LOCAL fields
     private String shell;
+    private String umlEnvironment;
     private String cwd;
     private String env; // newline separated KEY=VAL
 
@@ -106,6 +107,8 @@ public class ConnectionProfile {
     public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
 
     public String getShell() { return shell; }
+    public String getUmlEnvironment() { return umlEnvironment; }
+    public void setUmlEnvironment(String name) { umlEnvironment = name; }
     public void setShell(String shell) { this.shell = shell; }
     public String getCwd() { return cwd; }
     public void setCwd(String cwd) { this.cwd = cwd; }
@@ -209,6 +212,7 @@ public class ConnectionProfile {
             if (sb.length() == 0 || (cloudflaredEnabled && sb.toString().equals("[CF] "))) sb.append(type == Type.MOSH ? "Mosh" : "SSH");
             return sb.toString();
         } else {
+            if (umlEnvironment != null && !umlEnvironment.isEmpty()) return "UML: " + umlEnvironment;
             if (cwd != null && !cwd.isEmpty()) return cwd;
             if (shell != null && !shell.isEmpty()) return shell;
             return "Local shell";
@@ -231,6 +235,7 @@ public class ConnectionProfile {
         o.put("createdAt", createdAt);
         o.put("updatedAt", updatedAt);
         o.put("shell", shell != null ? shell : "");
+        o.put("umlEnvironment", umlEnvironment != null ? umlEnvironment : "");
         o.put("cwd", cwd != null ? cwd : "");
         o.put("env", env != null ? env : "");
         o.put("host", host != null ? host : "");
@@ -270,6 +275,8 @@ public class ConnectionProfile {
         p.updatedAt = o.optLong("updatedAt", System.currentTimeMillis());
         String s = o.optString("shell", "");
         p.shell = s.isEmpty() ? null : s;
+        s = o.optString("umlEnvironment", "");
+        p.umlEnvironment = s.isEmpty() ? null : s;
         s = o.optString("cwd", "");
         p.cwd = s.isEmpty() ? null : s;
         s = o.optString("env", "");

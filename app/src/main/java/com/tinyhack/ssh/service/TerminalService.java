@@ -395,7 +395,7 @@ public class TerminalService extends Service {
             }
         }
 
-        TerminalSession session = new TerminalSession(command, workDir, arguments, envp, 24, 80, 10, 20,
+        TerminalSession session = new TerminalSession(getFilesDir().getAbsolutePath(), command, workDir, arguments, envp, 24, 80, 10, 20,
                 profileId, sessionName, kittyGraphicsEnabled, osc52ClipboardEnabled, notificationsEnabled, kittyNotifications);
         sessions.add(session);
         currentSessionIndex = sessions.size() - 1;
@@ -656,6 +656,12 @@ public class TerminalService extends Service {
                 }
             } else {
                 cmd = null; // fallback to default bash
+            }
+            if (profile.getUmlEnvironment() != null && !profile.getUmlEnvironment().isEmpty()) {
+                cmd = new File(getApplicationInfo().nativeLibraryDir, "libbash.so").getAbsolutePath();
+                argv = new String[]{"bash", new File(getFilesDir(), "usr/libexec/uml-env").getAbsolutePath(),
+                        "start", profile.getUmlEnvironment()};
+                workDir = homeDir;
             }
             // Parse env
             if (profile.getEnv() != null && !profile.getEnv().trim().isEmpty()) {

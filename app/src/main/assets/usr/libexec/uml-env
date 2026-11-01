@@ -1,0 +1,81 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+BASE="$HOME/uml"
+ENVS="$BASE/envs"
+NATIVE=$(dirname "$(readlink /proc/$$/exe)")
+fail() { echo "uml-env: $*" >&2; exit 1; }
+usage() {
+    echo 'uml-env create -t debian -n NAME -d SIZE -u USER'
+    echo 'uml-env start NAME'
+    echo 'uml-env list'
+    echo 'Sizes: 512M or larger, e.g. 1024M, 4G. Creation needs internet access.'
+}
+valid_name() { [[ $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,47}$ ]]; }
+run_guest() {
+    local mode=$1
+    exec 9>"$DIR/run.lock"
+    flock -n 9 || fail 'This environment is already running.'
+    mkdir -p "$DIR/tmp"
+    export TMPDIR="$DIR/tmp" PASST_NO_SANDBOX=1
+    local command=("$NATIVE/libuml.so" "mem=${UML_MEMORY:-512M}" "ubd0=$DIR/disk.ext4" root=/dev/ubda rw init=/init con=null con0=fd:0,fd:1 "stub_exe=$NATIVE/libuml-stub.so")
+    [[ $mode == create ]] && command+=("uml_create=$user")
+    [[ -f "$NATIVE/libuml-net.so" ]] || fail 'UML networking is not installed.'
+    command=("$NATIVE/libuml-net.so" --passt "$NATIVE/libuml-passt.so" -- "${command[@]}")
+    local quoted
+    printf -v quoted '%q ' "${command[@]}"
+    script -q -c "$quoted" "$DIR/console.log"
+}
+operation=${1:-help}
+[[ $# == 0 ]] || shift
+case "$operation" in
+help|--help|-h) usage ;;
+list)
+    [[ $# == 0 ]] || fail 'Usage: uml-env list'
+    for dir in "$ENVS"/*; do
+        [[ -f "$dir/ready" && -f "$dir/disk.ext4" ]] || continue
+        printf '%s\n' "${dir##*/}"
+    done ;;
+create)
+    type=debian name= size=1024M user=user
+    while [[ $# -gt 0 ]]; do
+        [[ $# -ge 2 ]] || fail "Missing value for $1"
+        case "$1" in
+            -t|--type) type=$2 ;; -n|--name) name=$2 ;;
+            -d|--disk-size) size=$2 ;; -u|--user) user=$2 ;;
+            *) fail "Unknown option: $1" ;;
+        esac
+        shift 2
+    done
+    [[ $type == debian ]] || fail "Unsupported image type: $type"
+    valid_name "$name" || fail 'Use a name of 1–48 letters, digits, underscores or hyphens, starting with a letter or digit.'
+    [[ $user =~ ^[a-z][a-z0-9_-]{0,30}$ && $user != root ]] || fail 'Use a non-root Linux username (lowercase letters, digits, underscores or hyphens).'
+    [[ $size =~ ^([1-9][0-9]{0,5})([MG])$ ]] || fail 'Size must be an integer followed by M or G.'
+    mb=${BASH_REMATCH[1]}
+    [[ ${BASH_REMATCH[2]} == M ]] || mb=$((mb * 1024))
+    (( mb >= 512 && mb <= 1048576 )) || fail 'Disk size must be between 512M and 1024G.'
+    template="$BASE/templates/debian.ext4.gz"
+    [[ -f "$template" ]] || fail 'Debian template missing. Install it with scripts/install-uml-env.sh on the host.'
+    [[ -f "$NATIVE/libuml.so" ]] || fail 'This app build does not include UML.'
+    [[ -f "$NATIVE/libuml-sparse-image.so" ]] || fail 'Update the app to install the sparse image utility.'
+    mkdir -p "$ENVS"
+    DIR="$ENVS/$name"
+    mkdir "$DIR" 2>/dev/null || fail "Environment already exists: $name"
+    # Keep interrupted creation for diagnosis; it is never listed as ready.
+    gzip -dc "$template" | "$NATIVE/libuml-sparse-image.so" "$DIR/disk.ext4" "$((mb * 1024 * 1024))"
+    printf '%s\n' "$type" > "$DIR/type"
+    printf '%s\n' "$user" > "$DIR/user"
+    echo "Creating $name (${mb}M) with user $user. Installing sudo and filesystem tools..."
+    run_guest create
+    grep -q '^UML_ENV_CREATE_OK' "$DIR/console.log" || fail "Creation failed; see $DIR/console.log. Use a new name after resolving the error."
+    touch "$DIR/ready"
+    echo "Created $name. Enter with: uml-env start $name" ;;
+start)
+    [[ $# == 1 ]] || fail 'Usage: uml-env start NAME'
+    valid_name "$1" || fail 'Invalid environment name.'
+    DIR="$ENVS/$1"
+    [[ -f "$DIR/ready" && -f "$DIR/disk.ext4" ]] || fail "Environment not found or creation incomplete: $1"
+    # Kernel UBD locking also prevents a disk from being opened by two guests.
+    run_guest start ;;
+*) usage >&2; exit 1 ;;
+esac

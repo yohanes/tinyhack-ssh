@@ -1,4 +1,4 @@
-cloudflared 2026.10.0 third-party dependency notices
+cloudflared 2026.10.7 third-party dependency notices
 
 Generated from the exact vendored dependency tree used by this build.
 

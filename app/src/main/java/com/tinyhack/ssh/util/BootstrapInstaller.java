@@ -69,6 +69,15 @@ public class BootstrapInstaller {
             } catch (IOException ignored) {}
         }
         ensureBashIntegration(homeDir);
+        // Android executes bundled interpreters; writable scripts are read by bash.
+        try {
+            String content = new String(java.nio.file.Files.readAllBytes(bashrc.toPath()), StandardCharsets.UTF_8);
+            if (!content.contains("uml-env()")) {
+                try (FileOutputStream fos = new FileOutputStream(bashrc, true)) {
+                    fos.write("\numl-env() { bash \"$HOME/../usr/libexec/uml-env\" \"$@\"; }\n".getBytes(StandardCharsets.UTF_8));
+                }
+            }
+        } catch (IOException e) { SafeLog.e(TAG, "Failed to install UML command", e); }
 
         File bashProfile = new File(homeDir, ".bash_profile");
         if (!bashProfile.exists()) {

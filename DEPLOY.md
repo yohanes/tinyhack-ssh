@@ -20,7 +20,7 @@ Install or verify:
 - OpenJDK 17
 - Android SDK at `/home/yohanes/Android/Sdk`
 - Android NDK `26.1.10909125`
-- Gradle 8.13 at `/home/yohanes/apps/gradle-8.13/bin/gradle`
+- Gradle 9.8.2 via the checked-in `./gradlew` wrapper
 - `keytool`, `jarsigner`, `readelf`, `xz`, and standard GNU build tools
 - An arm64 Android 14+ device for final testing
 
@@ -46,8 +46,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 4
-versionName "1.0.3"
+versionCode 5
+versionName "1.0.4"
 ```
 
 Rules:
@@ -101,7 +101,7 @@ TINYHACK_SSH_KEY_PASSWORD=replace-me
 ## 4. Rebuild native userland for 16 KiB pages
 
 When terminal-core code changes, run `scripts/build-ghostty-android.sh` with
-Zig 0.16.0 and the matching Ghostty source snapshot. This applies the tracked
+Zig 0.17.0 and the pinned Ghostty v1.4.0 source. This applies the tracked
 OSC 99 patch and installs the archive/header used by the Gradle build.
 
 Run this for the first release and whenever Bash, BusyBox, curl, rsync,
@@ -109,7 +109,7 @@ OpenSSH, OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags
 change:
 
 ```bash
-GOTOOLCHAIN=go1.27.2 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
+GOTOOLCHAIN=go1.27.3 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
 ```
 
 The script rebuilds the bundled executables and verifies their ELF LOAD
@@ -126,7 +126,7 @@ Build lint and both debug APKs:
 
 ```bash
 export ANDROID_HOME=/home/yohanes/Android/Sdk
-/home/yohanes/apps/gradle-8.13/bin/gradle \
+./gradlew \
   clean lintPlayDebug lintFdroidDebug assemblePlayDebug assembleFdroidDebug
 ```
 
@@ -156,6 +156,27 @@ Manually test at minimum:
    Access and declares the permission.
 9. Open SSH Keys and confirm it is reachable only from inside Tinyhack SSH.
 10. Check About, privacy-policy, project, and third-party-license links.
+11. Paste short text containing CR, LF, ESC, or DEL: confirm a warning appears,
+    Cancel writes nothing, and Paste targets only the original session. Test
+    ordinary Unicode text and bracketed paste in Bash.
+
+Host-side security regression checks:
+
+```bash
+bash scripts/test-paste-safety.sh
+bash scripts/audit-cloudflared.sh
+cd ghostty
+zig build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl
+```
+
+The full upstream suite requires the default Debug configuration (its tracked-pin
+tests require slow runtime safety). For optimized security-focused checks:
+
+```bash
+zig build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl \
+  -Doptimize=ReleaseSafe -Dtest-filter='OSC 99' -Dtest-filter=paste \
+  -Dtest-filter=kitty -Dtest-filter='cursor page' -Dtest-filter='wide page'
+```
 
 Example non-sensitive storage test:
 
@@ -235,7 +256,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-sha256sum -c release/tinyhack-ssh-1.0.3-source.tar.xz.sha256
+(cd release && sha256sum -c tinyhack-ssh-1.0.4-source.tar.xz.sha256)
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -243,8 +264,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.0.3-source.tar.xz
-release/tinyhack-ssh-1.0.3-source.tar.xz.sha256
+release/tinyhack-ssh-1.0.4-source.tar.xz
+release/tinyhack-ssh-1.0.4-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish

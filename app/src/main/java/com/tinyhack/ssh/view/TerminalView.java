@@ -1167,6 +1167,27 @@ public class TerminalView extends View implements TerminalSession.Listener {
      */
     public boolean pasteText(String text) {
         if (session == null || text == null || text.isEmpty()) return false;
+        // CR is an Enter key too. Never let short, invisible-control-character
+        // pastes bypass the confirmation used for large clipboard contents.
+        boolean controls = com.tinyhack.ssh.util.PasteSafety.hasControlCharacters(text);
+        if (com.tinyhack.ssh.util.PasteSafety.requiresConfirmation(text)) {
+            final var target = session;
+            new AlertDialog.Builder(getContext())
+                    .setTitle(controls ? "Paste potentially unsafe text?" : "Paste large clipboard?")
+                    .setMessage(controls
+                            ? "This text contains line breaks or control characters and could execute commands. Paste it?"
+                            : "The clipboard contains " + text.length() + " characters. Paste everything?")
+                    .setPositiveButton("Paste", (d, w) -> {
+                        // A confirmation must never redirect a paste to a different session.
+                        if (session == target) {
+                            target.writePaste(text);
+                            clearSelectionInternal();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return true;
+        }
         session.writePaste(text);
         clearSelectionInternal();
         return true;

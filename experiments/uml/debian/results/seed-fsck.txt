@@ -1,0 +1,7 @@
+e2fsck 1.47.2 (1-Jan-2025)
+Pass 1: Checking inodes, blocks, and sizes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+tinyhack-debian: 3291/262144 files (0.1% non-contiguous), 58181/1048576 blocks

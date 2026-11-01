@@ -19,17 +19,17 @@ requirements; this notice does not attempt to reclassify linked components as
 | BusyBox | 1.38.0 | GPLv2 **only** | `licenses/busybox-1.38.0.LICENSE.GPLv2` | upstream tarball + `build-busybox/` |
 | curl | 8.23.0 | curl license (permissive) | `licenses/curl-8.23.0.LICENSE.curl` | upstream tarball + `build-curl/`, `scripts/build-curl-android.sh` |
 | rsync | 3.5.1 | GPLv3 | `licenses/rsync-3.5.1.COPYING.GPLv3` | upstream tarball + `build-rsync/` |
-| cloudflared (Cloudflare Access tunnel client) | 2026.10.0 | Apache-2.0 plus vendored dependency licenses | `licenses/cloudflared-2026.10.0.LICENSE.Apache-2.0`, `licenses/cloudflared-2026.10.0-THIRD-PARTY-NOTICES.txt` | exact vendored source + `scripts/build-cloudflared-android.sh`, `patches/cloudflared-android.patch` |
-| Go runtime (linked into cloudflared) | 1.27.2 | BSD-3-Clause | `licenses/go-1.27.2.LICENSE.BSD-3` | https://go.dev/dl/ |
+| cloudflared (Cloudflare Access tunnel client) | 2026.10.7 | Apache-2.0 plus vendored dependency licenses | `licenses/cloudflared-2026.10.7.LICENSE.Apache-2.0`, `licenses/cloudflared-2026.10.7-THIRD-PARTY-NOTICES.txt` | exact vendored source + `scripts/build-cloudflared-android.sh`, `patches/cloudflared-android.patch` |
+| Go runtime (linked into cloudflared) | 1.27.3 | BSD-3-Clause | `licenses/go-1.27.3.LICENSE.BSD-3` | https://go.dev/dl/ |
 | OpenSSH (ssh, scp, sftp, ssh-add, ssh-agent, ssh-keygen, ssh-keyscan) | 10.6p1 | BSD-style (permissive) | `licenses/openssh-10.6p1.LICENCE` | upstream tarball + `build-openssh/`, `scripts/build-openssh-android.sh`, `patches/` |
 | OpenSSL (statically linked into curl, OpenSSH, and mosh binaries) | 3.5.9 LTS | Apache-2.0 | `licenses/openssl-3.5.9.LICENSE.Apache-2.0` | upstream tarball + `build-openssl/`, `scripts/build-openssl-android.sh` |
 | Mosh (mosh-client + native `mosh` launcher) | 1.4.0 | GPLv3 | `licenses/mosh-1.4.0.COPYING.GPLv3` | `mosh/` (vendored) + `scripts/build-mosh-android.sh`, `scripts/mosh-launcher.cc` |
 | protobuf (statically linked into mosh-client) | 36.2 | BSD-3-Clause | `licenses/protobuf-36.2.LICENSE.BSD-3` | upstream tarball + `build-mosh/` |
-| Abseil (statically linked into mosh-client via protobuf) | 20250512.1 (protobuf-pinned dependency) | Apache-2.0 | `licenses/abseil-cpp-20250512.1.LICENSE.Apache-2.0` | upstream tarball + `build-mosh/` |
+| Abseil (statically linked into mosh-client via protobuf) | 20260817.0 | Apache-2.0 | `licenses/abseil-cpp-20260817.0.LICENSE.Apache-2.0` | upstream tarball + `build-mosh/` |
 | utf8_range (statically linked into mosh-client via protobuf) | bundled with protobuf 36.2 | MIT | `licenses/utf8-range.LICENSE.MIT` | protobuf source tree, `third_party/utf8_range/` |
 | ncurses / tinfo (statically linked into mosh-client) | 6.6 | X11-style (permissive) | `licenses/ncurses-6.6.COPYING` | upstream tarball + `build-mosh/` |
 | zlib (statically linked into mosh-client) | 1.3.2 | zlib license | `licenses/zlib-1.3.2.LICENSE` | upstream tarball + `build-mosh/` |
-| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | vendored snapshot | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + `patches/ghostty-osc99.patch`, `scripts/build-ghostty-android.sh` + generated `native/ghostty/` archive |
+| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | 1.4.0 (`83fb95624b0439ee660c2679b43b38c8b63769cd`) | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + `patches/ghostty-osc99.patch`, `scripts/build-ghostty-android.sh` + generated `native/ghostty/` archive |
 | terminfo entries (`xterm-kitty`, `xterm-ghostty`, `ghostty`, `kitty`, `xterm-256color`) | N/A | Ghostty/kitty/ncurses upstream licenses | Ghostty MIT above; `licenses/ncurses-6.6.COPYING`; GPLv3 text bundled with the GPL components | compiled assets plus reproducible source in `terminfo-sources/` |
 | Cascadia Code and Cascadia Mono | bundled font versions | SIL OFL 1.1 | `licenses/font-cascadia.OFL-1.1` | Microsoft Cascadia Code project |
 | Fira Code | bundled font version | SIL OFL 1.1 | `licenses/font-fira-code.OFL-1.1` | Fira Code project |

@@ -13,20 +13,20 @@ PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
 NDK_DIR=${MOSH_NDK_DIR:-/home/yohanes/Android/Sdk/ndk/26.1.10909125}
 TOOLCHAIN="$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin"
 BUILD="$PROJECT_DIR/build-mosh"
-HOST_PREFIX="$BUILD/host-install-36.2"
-TGT_PREFIX="$BUILD/install-36.2"
+HOST_PREFIX="$BUILD/host-install-36.2-absl-20260817.0"
+TGT_PREFIX="$BUILD/install-36.2-absl-20260817.0"
 MOSH_SRC="$PROJECT_DIR/mosh"
 JOBS=${JOBS:-$(nproc)}
 
 ZLIB_VERSION=1.3.2
 NCURSES_VERSION=6.6
 PROTOBUF_VERSION=36.2
-ABSEIL_VERSION=20250512.1
+ABSEIL_VERSION=20260817.0
 
 ZLIB_SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
 NCURSES_SHA256=355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11
 PROTOBUF_SHA256=3d9642a662d10e68ebae5e53f14dcce5105684212d5078f8e0d47d1ab3ae6b64
-ABSEIL_SHA256=9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db
+ABSEIL_SHA256=f7e05179df39c45434cad433f5783840bb3788ef322976f9138bc6b72b3a107d
 
 export PATH="$TOOLCHAIN:$PATH"
 unset ANDROID_NDK_ROOT ANDROID_NDK_HOME
@@ -128,7 +128,12 @@ OPENSSL_PREFIX="$PROJECT_DIR/build-openssl/install"   # shared with build-openss
 (
     cd "$MOSH_SRC"
     if [[ -f "$PROJECT_DIR/patches/mosh-android.patch" ]]; then
-        patch --forward -p1 < "$PROJECT_DIR/patches/mosh-android.patch" || true
+        if patch --dry-run --forward -p1 < "$PROJECT_DIR/patches/mosh-android.patch" >/dev/null 2>&1; then
+            patch --forward -p1 < "$PROJECT_DIR/patches/mosh-android.patch"
+        elif ! patch --dry-run --reverse -p1 < "$PROJECT_DIR/patches/mosh-android.patch" >/dev/null 2>&1; then
+            echo "Cannot apply Mosh Android compatibility patch" >&2
+            exit 1
+        fi
     fi
     make distclean >/dev/null 2>&1 || true
     ./autogen.sh 2>/dev/null || true

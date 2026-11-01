@@ -2,7 +2,8 @@
 set -euo pipefail
 
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
-CLOUDFLARED_DIR=${CLOUDFLARED_DIR:-"$PROJECT_DIR/build/cloudflared-2026.10.0"}
+CLOUDFLARED_DIR=${CLOUDFLARED_DIR:-"$PROJECT_DIR/build/cloudflared-2026.10.7"}
+export GOTOOLCHAIN=${GOTOOLCHAIN:-go1.27.3}
 OUT_DIR="$PROJECT_DIR/app/src/main/jniLibs/arm64-v8a"
 OUT="$OUT_DIR/libcloudflared.so"
 # Use explicit NDK 26.1; ignore stale ANDROID_NDK_HOME pointing to missing r25b
@@ -22,8 +23,8 @@ version_at_least() {
 }
 
 GO_VERSION=$(go env GOVERSION | sed 's/^go//')
-if ! version_at_least "$GO_VERSION" "1.27.2"; then
-    echo "Go 1.27.2 or newer is required; found Go $GO_VERSION" >&2
+if ! version_at_least "$GO_VERSION" "1.27.3"; then
+    echo "Go 1.27.3 or newer is required; found Go $GO_VERSION" >&2
     exit 1
 fi
 
@@ -47,7 +48,7 @@ apply_patch_once() {
 
 # Obtain the pinned release without overwriting older, patched source trees.
 if [[ ! -d "$CLOUDFLARED_DIR" ]]; then
-    git clone --depth 1 --branch 2026.10.0 https://github.com/cloudflare/cloudflared.git "$CLOUDFLARED_DIR"
+    git clone --depth 1 --branch 2026.10.7 https://github.com/cloudflare/cloudflared.git "$CLOUDFLARED_DIR"
 fi
 
 # Apply Android browser fix if not already present
@@ -56,27 +57,26 @@ fi
     if [[ -f "$PROJECT_DIR/patches/cloudflared-android.patch" ]]; then
         apply_patch_once "$PROJECT_DIR/patches/cloudflared-android.patch"
     fi
-    if [[ -f "$PROJECT_DIR/patches/cloudflared-security-dependencies.patch" ]]; then
-        apply_patch_once "$PROJECT_DIR/patches/cloudflared-security-dependencies.patch"
-    fi
-
-    # The build uses vendored modules. Refresh them when the pinned security
-    # versions have changed, then fail closed if an older version is present.
-    if ! grep -q '^# golang.org/x/crypto v0.58.0$' vendor/modules.txt \
-            || ! grep -q '^# github.com/klauspost/compress v1.20.1$' vendor/modules.txt; then
-        echo "Refreshing cloudflared vendored dependencies..."
-        GOFLAGS=-mod=mod go mod tidy
-        go mod vendor
-    fi
+    apply_patch_once "$PROJECT_DIR/patches/cloudflared-security-dependencies.patch"
+    # 2026.10.7 includes most of the security upgrades previously patched locally.
+    # Materialize its pinned go.mod/go.sum dependencies (the release source
+    # does not ship a synchronized vendor tree). Do not resolve newer versions.
+    GOFLAGS=-mod=mod go mod download golang.org/x/net@v0.62.0
+    GOFLAGS=-mod=readonly go mod vendor
 
     CRYPTO_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' golang.org/x/crypto)
     COMPRESS_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' github.com/klauspost/compress)
+    NET_VERSION=$(go list -mod=vendor -m -f '{{.Version}}' golang.org/x/net)
+    if ! version_at_least "${NET_VERSION#v}" "0.62.0"; then
+        echo "golang.org/x/net v0.62.0 or newer is required; found $NET_VERSION" >&2
+        exit 1
+    fi
     if ! version_at_least "${CRYPTO_VERSION#v}" "0.58.0"; then
         echo "golang.org/x/crypto v0.58.0 or newer is required; found $CRYPTO_VERSION" >&2
         exit 1
     fi
-    if ! version_at_least "${COMPRESS_VERSION#v}" "1.20.1"; then
-        echo "github.com/klauspost/compress v1.20.1 or newer is required; found $COMPRESS_VERSION" >&2
+    if ! version_at_least "${COMPRESS_VERSION#v}" "1.20.3"; then
+        echo "github.com/klauspost/compress v1.20.3 or newer is required; found $COMPRESS_VERSION" >&2
         exit 1
     fi
 )
@@ -85,7 +85,7 @@ fi
 mkdir -p "$OUT_DIR"
 
 # Build flags - use UTC ISO format without spaces to avoid ldflags parsing issues
-VERSION=${VERSION:-$(git -C "$CLOUDFLARED_DIR" describe --tags --always --match "[0-9][0-9][0-9][0-9].*.*" 2>/dev/null || echo "DEV")}
+VERSION=${VERSION:-2026.10.7}
 DATE=${DATE:-$(date -u -r "$CLOUDFLARED_DIR/RELEASE_NOTES" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ')}
 VERSION_FLAGS="-X main.Version=$VERSION -X main.BuildTime=$DATE"
 

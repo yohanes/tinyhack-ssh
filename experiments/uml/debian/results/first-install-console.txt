@@ -1,0 +1,366 @@
+/proc/self/uid_map not readable, assuming init namespace
+Can't use close_range() to ensure no files leaked by parent
+netlink unavailable, continuing without interface discovery
+IPv4: no external interface as template, use local mode
+Unable to open /proc/sys/net/ipv4/ip_local_port_range: Permission denied
+PASST_NO_SANDBOX set, skipping user namespace
+PASST_NO_SANDBOX set, skipping unneeded privilege drop
+MAC:
+    host: 9a:55:9a:55:9a:55
+    NAT to host 127.0.0.1: 10.0.2.2
+DHCP:
+    assign: 10.0.2.15
+    mask: 255.255.255.0
+    router: 10.0.2.2
+DNS:
+    1.1.1.1
+Inbound forwarding rules (HOST):
+Failed to bind neighbour notifier socket: Permission denied
+PASST_NO_SANDBOX set, skipping namespace/mount sandbox
+Address space: host top 0x8000000000, stub at 0x7fffff4000, guest TASK_SIZE 0x7fc0000000
+Core dump limits :
+	soft - 0
+	hard - NONE
+Stub signal stack: 16384 bytes, host AT_MINSIGSTKSZ 4720
+Checking environment variables for a tempdir.../data/user/0/com.tinyhack.ssh.uml/files/home/uml/tmp
+Checking if /data/user/0/com.tinyhack.ssh.uml/files/home/uml/tmp is on tmpfs...no
+Warning: tempdir /data/user/0/com.tinyhack.ssh.uml/files/home/uml/tmp is not on tmpfs
+Checking PROT_EXEC mmap in /data/user/0/com.tinyhack.ssh.uml/files/home/uml/tmp...OK
+Checking close_range()...unavailable; closing by hand
+Checking the stub's cycle counter...OK
+Userspace mode: ptrace
+Checking that ptrace can change system call numbers...OK
+Checking syscall emulation for ptrace...OK
+Linux version 7.2.0-rc4-g32e5e10b81d8-dirty (um@arm64) (Android (12470979, +pgo, +bolt, +lto, +mlgo, based on r522817c) clang version 18.0.3 (https://android.googlesource.com/toolchain/llvm-project d8003a456d14a3deb8054cdaa529ffbf02d9b262), LLD 18.0.3) #2 Thu Jan  1 00:00:00 UTC 1970
+random: crng init done
+Zone ranges:
+  Normal   [mem 0x0000000000000000-0x000000007fffffff]
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000000000-0x000000001fffffff]
+Initmem setup node 0 [mem 0x0000000000000000-0x000000001fffffff]
+Kernel command line: ubd0=/data/user/0/com.tinyhack.ssh.uml/files/home/uml/debian.ext4 root=/dev/ubda rw init=/init con=null con0=fd:0,fd:1 vec0:transport=fd,fd=3,mac=02:00:00:00:00:01 console=tty0
+printk: log buffer data + meta data: 16384 + 57344 = 73728 bytes
+Dentry cache hash table entries: 65536 (order: 5, 524288 bytes, linear)
+Inode-cache hash table entries: 32768 (order: 4, 262144 bytes, linear)
+Built 1 zonelists, mobility grouping on.  Total pages: 32768
+mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 64
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+clocksource: timer: mask: 0xffffffffffffffff max_cycles: 0x1cd42e205, max_idle_ns: 881590404426 ns
+Calibrating delay loop... 4552.29 BogoMIPS (lpj=22761472)
+Checking that host ptys support output SIGIO...Yes
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 2048 (order: 0, 16384 bytes, linear)
+Mountpoint-cache hash table entries: 2048 (order: 0, 16384 bytes, linear)
+VFS: Finished mounting rootfs on nullfs
+arm64: hwcap host 0x119fff/0x0 -> guest 0x1197ff/0x0 (masked out 0x800/0x0)
+Memory: 512736K/524288K available (4432K kernel code, 1326K rwdata, 1168K rodata, 178K init, 406K bss, 10192K reserved, 0K cma-reserved)
+devtmpfs: initialized
+posixtimers hash table entries: 512 (order: 0, 4096 bytes, linear)
+futex hash table entries: 256 (6144 bytes on 1 NUMA nodes, total 6 KiB, linear).
+NET: Registered PF_NETLINK/PF_ROUTE protocol family
+pps_core: LinuxPPS API ver. 1 registered
+pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+PTP clock support registered
+clocksource: Switched to clocksource timer
+VFS: Disk quotas dquot_6.6.0
+VFS: Dquot-cache hash table entries: 2048 (16384 bytes)
+NET: Registered PF_INET protocol family
+IP idents hash table entries: 8192 (order: 2, 65536 bytes, linear)
+tcp_listen_portaddr_hash hash table entries: 2048 (order: 0, 16384 bytes, linear)
+Table-perturb hash table entries: 65536 (order: 4, 262144 bytes, linear)
+TCP established hash table entries: 4096 (order: 1, 32768 bytes, linear)
+TCP bind hash table entries: 4096 (order: 2, 65536 bytes, linear)
+TCP: Hash tables configured (established 4096 bind 4096)
+UDP hash table entries: 256 (order: 0, 16384 bytes, linear)
+NET: Registered PF_UNIX/PF_LOCAL protocol family
+printk: legacy console [stderr0] disabled
+Checking host MADV_REMOVE support...OK
+mconsole (version 2) initialized on /data/user/0/com.tinyhack.ssh.uml/files/home/.uml/M54kfS/mconsole
+workingset: timestamp_bits=62 (anon: 57) max_order=15 bucket_order=0 (anon: 0)
+io scheduler mq-deadline registered
+io scheduler kyber registered
+io scheduler bfq registered
+loop: module loaded
+tun: Universal TUN/TAP device driver, 1.6
+PPP generic driver version 2.4.2
+SLIP: version 0.8.4-NET3.019-NEWTTY (dynamic channels, max=256).
+NET: Registered PF_PACKET protocol family
+Initialized stdio console driver
+Console initialized on /dev/tty0
+printk: legacy console [tty0] enabled
+Initializing software serial port version 1
+printk: legacy console [mc-1] enabled
+winch_thread : TIOCSCTTY failed on fd 1 err = 1
+EXT4-fs (ubda): mounted filesystem ebc3cd82-7030-447b-b600-d8b6200d80de r/w with ordered data mode. Quota mode: none.
+VFS: Mounted root (ext4 filesystem) on device 98:0.
+devtmpfs: mounted
+VFS: Pivoted into new rootfs
+Run /init as init process
+init started: BusyBox v1.38.0 (2026-11-01 21:07:54 +07)
+starting pid 42, tty '': '/usr/local/sbin/uml-boot'
+TINYHACK_DEBIAN_BOOT_OK
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.7
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+Use apt-get update and apt-get install PACKAGE to extend Debian.
+Use poweroff for a clean shutdown.
+starting pid 56, tty '': '/bin/bash -l'
+bash: cannot set terminal process group (-1): Inappropriate ioctl for device
+bash: no job control in this shell
+[?2004hdebian-uml:/# apt-get update
+[?2004l0% [Working]New guest MAC address observed: 02:00:00:00:00:01
+            Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+0% [1 InRelease 140 kB/140 kB 100%]                                   0% [Working]            Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+            Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+0% [Working]0% [Working]            Get:4 http://deb.debian.org/debian trixie/main arm64 Packages [9614 kB]
+0% [4 Packages 0 B/9614 kB 0%]0% [4 Packages 3337 kB/9614 kB 35%]61% [4 Packages 5803 kB/9614 kB 60%]                                    91% [Working]91% [4 Packages store 0 B] [Waiting for headers]                                                Get:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [1108 B]
+                                                Get:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [292 kB]
+                                                93% [4 Packages store 0 B]93% [4 Packages store 0 B]93% [4 Packages store 0 B]93% [4 Packages store 0 B]                          96% [Working]96% [5 Packages store 0 B]                          98% [Working]98% [6 Packages store 0 B]                          100% [Working]              Fetched 10.1 MB in 4s (2644 kB/s)
+Reading package lists... 0%Reading package lists... 0%Reading package lists... 0%Reading package lists... 52%Reading package lists... 81%Reading package lists... 96%Reading package lists... 96%Reading package lists... 96%Reading package lists... 96%Reading package lists... 99%Reading package lists... 99%Reading package lists... Done
+[?2004hdebian-uml:/# vi /root/vi-test.txt
+[?2004l[?1049h[H[J[2;1H~[3;1H~[4;1H~[5;1H~[6;1H~[7;1H~[8;1H~[9;1H~[10;1H~[11;1H~[12;1H~[13;1H~[14;1H~[15;1H~[16;1H~[17;1H~[18;1H~[19;1H~[20;1H~[21;1H~[22;1H~[23;1H~[1;1H[24;1H[K- /root/vi-test.txt 1/1 100%[1;1H[1;1H[24;1H[KI /root/vi-test.txt 1/1 100%[1;1H[1;1HE[1;2H[24;1H[KI /root/vi-test.txt [Modified] 1/1 100%[1;2H[1;2Hd[1;3H[1;3Hi[1;4H[1;4Ht[1;5H[1;5He[1;6H[1;6Hd[1;7H[1;8H[1;8Hi[1;9H[1;9Hn[1;10H[1;11H[1;11Hv[1;12H[1;12Hi[1;13H[1;14H[1;14Ho[1;15H[1;15Hn[1;16H[1;17H[1;17Ht[1;18H[1;18Hh[1;19H[1;19He[1;20H[1;21H[1;21HA[1;22H[1;22Hn[1;23H[1;23Hd[1;24H[1;24Hr[1;25H[1;25Ho[1;26H[1;26Hi[1;27H[1;27Hd[1;28H[1;29H[1;29HU[1;30H[1;30HM[1;31H[1;31HL[1;32H[1;33H[1;33Hg[1;34H[1;34Hu[1;35H[1;35He[1;36H[1;36Hs[1;37H[1;37Ht[1;38H[1;38H.[1;39H[2;1H [2;1H[24;1H[KI /root/vi-test.txt [Modified] 2/2 100%[2;1H[2;1Hc[2;2H[2;2Ha[2;3H[2;3Ht[2;4H[2;5H[2;5H/[2;6H[2;6Hr[2;7H[2;7Ho[2;8H[2;8Ho[2;9H[2;9Ht/[2;11H[2;11Hv[2;12H[2;12Hi[2;13H[2;13H-[2;14H[2;14Ht[2;15H[2;15He[2;16H[2;16Hs[2;17H[2;17Ht[2;18H[2;18H.[2;19H[2;19Ht[2;20H[2;20Hx[2;21H[2;21Ht[2;22H[3;1H [3;1H[24;1H[KI /root/vi-test.txt [Modified] 3/3 100%[3;1H[3;1Ha[3;2H[3;2Hp[3;3H[3;3Ht[3;4H[3;4H-[3;5H[3;5Hg[3;6H[3;6He[3;7H[3;7Ht[3;8H[3;9H[3;9Hi[3;10H[3;10Hn[3;11H[3;11Hs[3;12H[3;12Ht[3;13H[3;13Ha[3;14H[3;14Hl[3;15H[3;15Hl[3;16H[3;17H[3;17H-[3;18H[3;18Hy[3;19H[3;20H[3;20Hv[3;21H[3;21Hi[3;22H[3;22Hm[3;23H[3;23H-[3;24H[3;24Ht[3;25H[3;25Hi[3;26H[3;26Hn[3;27H[3;27Hy[3;28H[3;29H[3;29Hc[3;30H[3;30Ha[3;31H[3;31H-[3;32H[3;32Hc[3;33H[3;33He[3;34H[3;34Hr[3;35H[3;35Ht[3;36H[3;36Hi[3;37H[3;37Hf[3;38H[3;38Hi[3;39H[3;39Hc[3;40H[3;40Ha[3;41H[3;41Ht[3;42H[3;42He[3;43H[3;43Hs[3;44H[3;45H[3;45Hj[3;46H[3;46Hq[3;47H[3;48H[3;48Hp[3;49H[3;49Hy[3;50H[3;50Ht[3;51H[3;51Hh[3;52H[3;52Ho[3;53H[3;53Hn[3;54H[3;54H3[3;55H[4;1H [4;1H[24;1H[KI /root/vi-test.txt [Modified] 4/4 100%[4;1H[5;1H [5;1H[24;1H[KI /root/vi-test.txt [Modified] 5/5 100%[5;1H[5;1H[24;1H[K- /root/vi-test.txt [Modified] 5/5 100%[5;1H[24;1H[K:wq[5;1H[5;1H[24;1H[K'/root/vi-test.txt' 5L, 118C[5;1H[24;1H[K[?1049l[?2004hdebian-uml:/# apt-get install -y vim-tiny ca-certif icates jq python3
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 0%Reading package lists... 53%Reading package lists... 93%Reading package lists... 96%Reading package lists... 96%Reading package lists... 96%Reading package lists... 96%Reading package lists... 99%Reading package lists... 99%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 1%Reading state information... Done
+The following additional packages will be installed:
+  libexpat1 libffi8 libgpm2 libjq1 libncursesw6
+  libonig5 libpython3-stdlib
+  libpython3.13-minimal libpython3.13-stdlib
+  libreadline8t64 media-types netbase openssl
+  python3-minimal python3.13 python3.13-minimal
+  readline-common vim-common xxd
+Suggested packages:
+  gpm python3-doc python3-tk python3-venv
+  python3.13-venv python3.13-doc binutils
+  binfmt-support readline-doc indent
+The following NEW packages will be installed:
+  ca-certificates jq libexpat1 libffi8 libgpm2
+  libjq1 libncursesw6 libonig5 libpython3-stdlib
+  libpython3.13-minimal libpython3.13-stdlib
+  libreadline8t64 media-types netbase openssl
+  python3 python3-minimal python3.13
+  python3.13-minimal readline-common vim-common
+  vim-tiny xxd
+0 upgraded, 23 newly installed, 0 to remove and 1 not upgraded.
+Need to get 9399 kB of archives.
+After this operation, 34.7 MB of additional disk space will be used.
+0% [Working]            Get:1 http://deb.debian.org/debian-security trixie-security/main arm64 libexpat1 arm64 2.9.0-1~deb13u1 [114 kB]
+0% [1 libexpat1 0 B/114 kB 0%]                              2% [Working]            Get:2 http://deb.debian.org/debian trixie/main arm64 libpython3.13-minimal arm64 3.13.5-2+deb13u5 [856 kB]
+2% [2 libpython3.13-minimal 0 B/856 kB 0%]                                          10% [Working]             Get:3 http://deb.debian.org/debian trixie/main arm64 python3.13-minimal arm64 3.13.5-2+deb13u5 [2008 kB]
+10% [3 python3.13-minimal 0 B/2008 kB 0%]                                         28% [Working]             Get:4 http://deb.debian.org/debian trixie/main arm64 python3-minimal arm64 3.13.5-1 [27.2 kB]
+28% [4 python3-minimal 0 B/27.2 kB 0%]                                      29% [Working]             Get:5 http://deb.debian.org/debian trixie/main arm64 media-types all 13.0.0 [29.3 kB]
+29% [5 media-types 0 B/29.3 kB 0%]                                  30% [Working]             Get:6 http://deb.debian.org/debian trixie/main arm64 netbase all 6.5 [12.4 kB]
+             Get:7 http://deb.debian.org/debian trixie/main arm64 libffi8 arm64 3.4.8-2 [21.3 kB]
+             Get:8 http://deb.debian.org/debian trixie/main arm64 libncursesw6 arm64 6.5+20250216-2 [124 kB]
+             Get:9 http://deb.debian.org/debian trixie/main arm64 readline-common all 8.2-6 [69.4 kB]
+36% [Waiting for headers]                         Get:10 http://deb.debian.org/debian trixie/main arm64 libreadline8t64 arm64 8.2-6 [159 kB]
+38% [Waiting for headers]                         Get:11 http://deb.debian.org/debian trixie/main arm64 libpython3.13-stdlib arm64 3.13.5-2+deb13u5 [1895 kB]
+39% [11 libpython3.13-stdlib 103 kB/1895 kB 5%]                                               55% [Working]             Get:12 http://deb.debian.org/debian trixie/main arm64 python3.13 arm64 3.13.5-2+deb13u5 [757 kB]
+55% [12 python3.13 0 B/757 kB 0%]                                 62% [Working]             Get:13 http://deb.debian.org/debian trixie/main arm64 libpython3-stdlib arm64 3.13.5-1 [10.2 kB]
+             Get:14 http://deb.debian.org/debian trixie/main arm64 python3 arm64 3.13.5-1 [28.2 kB]
+63% [14 python3 18.0 kB/28.2 kB 64%]                                    64% [Working]             Get:15 http://deb.debian.org/debian trixie/main arm64 vim-common all 2:9.1.1230-2 [421 kB]
+68% [15 vim-common 421 kB/421 kB 100%]                                      69% [Working]             Get:16 http://deb.debian.org/debian trixie/main arm64 vim-tiny arm64 2:9.1.1230-2 [709 kB]
+69% [16 vim-tiny 0 B/709 kB 0%]                               76% [Working]             Get:17 http://deb.debian.org/debian-security trixie-security/main arm64 openssl arm64 3.5.7-1~deb13u3 [1473 kB]
+76% [17 openssl 85.0 kB/1473 kB 6%]                                   89% [Working]             Get:18 http://deb.debian.org/debian-security trixie-security/main arm64 ca-certificates all 20250419+deb13u1 [161 kB]
+89% [18 ca-certificates 0 B/161 kB 0%]                                      91% [Working]             Get:19 http://deb.debian.org/debian trixie/main arm64 libonig5 arm64 6.9.9-1+b1 [181 kB]
+91% [19 libonig5 11.3 kB/181 kB 6%]                                   94% [Working]             Get:20 http://deb.debian.org/debian-security trixie-security/main arm64 libjq1 arm64 1.7.1-6+deb13u4 [152 kB]
+94% [20 libjq1 0 B/152 kB 0%]                             96% [Working]             Get:21 http://deb.debian.org/debian-security trixie-security/main arm64 jq arm64 1.7.1-6+deb13u4 [78.4 kB]
+96% [21 jq 32.8 kB/78.4 kB 42%]                               97% [Working]             Get:22 http://deb.debian.org/debian trixie/main arm64 libgpm2 arm64 1.20.7-11+b2 [14.7 kB]
+97% [22 libgpm2 14.7 kB/14.7 kB 100%]                                     Get:23 http://deb.debian.org/debian trixie/main arm64 xxd arm64 2:9.1.1230-2 [98.4 kB]
+                                     99% [23 xxd 98.4 kB/98.4 kB 100%]                                 100% [Working]              Fetched 9399 kB in 1s (7377 kB/s)
+debconf: unable to initialize frontend: Dialog
+debconf: (No usable dialog-like program is installed, so the dialog based frontend cannot be used. at /usr/share/perl5/Debconf/FrontEnd/Dialog.pm line 79, <STDIN> line 23.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/aarch64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 23.)
+debconf: falling back to frontend: Teletype
+debconf: unable to initialize frontend: Teletype
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Noninteractive
+Preconfiguring packages ...
+Selecting previously unselected package libexpat1:arm64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 4948 files and directories currently installed.)
+Preparing to unpack .../libexpat1_2.9.0-1~deb13u1_arm64.deb ...
+Unpacking libexpat1:arm64 (2.9.0-1~deb13u1) ...
+Selecting previously unselected package libpython3.13-minimal:arm64.
+Preparing to unpack .../libpython3.13-minimal_3.13.5-2+deb13u5_arm64.deb ...
+Unpacking libpython3.13-minimal:arm64 (3.13.5-2+deb13u5) ...
+Selecting previously unselected package python3.13-minimal.
+Preparing to unpack .../python3.13-minimal_3.13.5-2+deb13u5_arm64.deb ...
+Unpacking python3.13-minimal (3.13.5-2+deb13u5) ...
+Setting up libpython3.13-minimal:arm64 (3.13.5-2+deb13u5) ...
+Setting up libexpat1:arm64 (2.9.0-1~deb13u1) ...
+Setting up python3.13-minimal (3.13.5-2+deb13u5) ...
+Selecting previously unselected package python3-minimal.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 5282 files and directories currently installed.)
+Preparing to unpack .../0-python3-minimal_3.13.5-1_arm64.deb ...
+Unpacking python3-minimal (3.13.5-1) ...
+Selecting previously unselected package media-types.
+Preparing to unpack .../1-media-types_13.0.0_all.deb ...
+Unpacking media-types (13.0.0) ...
+Selecting previously unselected package netbase.
+Preparing to unpack .../2-netbase_6.5_all.deb ...
+Unpacking netbase (6.5) ...
+Selecting previously unselected package libffi8:arm64.
+Preparing to unpack .../3-libffi8_3.4.8-2_arm64.deb ...
+Unpacking libffi8:arm64 (3.4.8-2) ...
+Selecting previously unselected package libncursesw6:arm64.
+Preparing to unpack .../4-libncursesw6_6.5+20250216-2_arm64.deb ...
+Unpacking libncursesw6:arm64 (6.5+20250216-2) ...
+Selecting previously unselected package readline-common.
+Preparing to unpack .../5-readline-common_8.2-6_all.deb ...
+Unpacking readline-common (8.2-6) ...
+Selecting previously unselected package libreadline8t64:arm64.
+Preparing to unpack .../6-libreadline8t64_8.2-6_arm64.deb ...
+Adding 'diversion of /lib/aarch64-linux-gnu/libhistory.so.8 to /lib/aarch64-linux-gnu/libhistory.so.8.usr-is-merged by libreadline8t64'
+Adding 'diversion of /lib/aarch64-linux-gnu/libhistory.so.8.2 to /lib/aarch64-linux-gnu/libhistory.so.8.2.usr-is-merged by libreadline8t64'
+Adding 'diversion of /lib/aarch64-linux-gnu/libreadline.so.8 to /lib/aarch64-linux-gnu/libreadline.so.8.usr-is-merged by libreadline8t64'
+Adding 'diversion of /lib/aarch64-linux-gnu/libreadline.so.8.2 to /lib/aarch64-linux-gnu/libreadline.so.8.2.usr-is-merged by libreadline8t64'
+Unpacking libreadline8t64:arm64 (8.2-6) ...
+Selecting previously unselected package libpython3.13-stdlib:arm64.
+Preparing to unpack .../7-libpython3.13-stdlib_3.13.5-2+deb13u5_arm64.deb ...
+Unpacking libpython3.13-stdlib:arm64 (3.13.5-2+deb13u5) ...
+Selecting previously unselected package python3.13.
+Preparing to unpack .../8-python3.13_3.13.5-2+deb13u5_arm64.deb ...
+Unpacking python3.13 (3.13.5-2+deb13u5) ...
+Selecting previously unselected package libpython3-stdlib:arm64.
+Preparing to unpack .../9-libpython3-stdlib_3.13.5-1_arm64.deb ...
+Unpacking libpython3-stdlib:arm64 (3.13.5-1) ...
+Setting up python3-minimal (3.13.5-1) ...
+Selecting previously unselected package python3.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 5790 files and directories currently installed.)
+Preparing to unpack .../0-python3_3.13.5-1_arm64.deb ...
+Unpacking python3 (3.13.5-1) ...
+Selecting previously unselected package vim-common.
+Preparing to unpack .../1-vim-common_2%3a9.1.1230-2_all.deb ...
+Unpacking vim-common (2:9.1.1230-2) ...
+Selecting previously unselected package vim-tiny.
+Preparing to unpack .../2-vim-tiny_2%3a9.1.1230-2_arm64.deb ...
+Unpacking vim-tiny (2:9.1.1230-2) ...
+Selecting previously unselected package openssl.
+Preparing to unpack .../3-openssl_3.5.7-1~deb13u3_arm64.deb ...
+Unpacking openssl (3.5.7-1~deb13u3) ...
+Selecting previously unselected package ca-certificates.
+Preparing to unpack .../4-ca-certificates_20250419+deb13u1_all.deb ...
+Unpacking ca-certificates (20250419+deb13u1) ...
+Selecting previously unselected package libonig5:arm64.
+Preparing to unpack .../5-libonig5_6.9.9-1+b1_arm64.deb ...
+Unpacking libonig5:arm64 (6.9.9-1+b1) ...
+Selecting previously unselected package libjq1:arm64.
+Preparing to unpack .../6-libjq1_1.7.1-6+deb13u4_arm64.deb ...
+Unpacking libjq1:arm64 (1.7.1-6+deb13u4) ...
+Selecting previously unselected package jq.
+Preparing to unpack .../7-jq_1.7.1-6+deb13u4_arm64.deb ...
+Unpacking jq (1.7.1-6+deb13u4) ...
+Selecting previously unselected package libgpm2:arm64.
+Preparing to unpack .../8-libgpm2_1.20.7-11+b2_arm64.deb ...
+Unpacking libgpm2:arm64 (1.20.7-11+b2) ...
+Selecting previously unselected package xxd.
+Preparing to unpack .../9-xxd_2%3a9.1.1230-2_arm64.deb ...
+Unpacking xxd (2:9.1.1230-2) ...
+Setting up media-types (13.0.0) ...
+Setting up libgpm2:arm64 (1.20.7-11+b2) ...
+Setting up xxd (2:9.1.1230-2) ...
+Setting up vim-common (2:9.1.1230-2) ...
+Setting up libncursesw6:arm64 (6.5+20250216-2) ...
+Setting up libffi8:arm64 (3.4.8-2) ...
+Setting up netbase (6.5) ...
+Setting up openssl (3.5.7-1~deb13u3) ...
+Setting up readline-common (8.2-6) ...
+Setting up libonig5:arm64 (6.9.9-1+b1) ...
+Setting up libjq1:arm64 (1.7.1-6+deb13u4) ...
+Setting up vim-tiny (2:9.1.1230-2) ...
+update-alternatives: using /usr/bin/vim.tiny to provide /usr/bin/editor (editor) in auto mode
+update-alternatives: warning: skip creation of /usr/share/man/man1/editor.1.gz because associated file /usr/share/man/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/da/man1/editor.1.gz because associated file /usr/share/man/da/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/de/man1/editor.1.gz because associated file /usr/share/man/de/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/fr/man1/editor.1.gz because associated file /usr/share/man/fr/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/it/man1/editor.1.gz because associated file /usr/share/man/it/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ja/man1/editor.1.gz because associated file /usr/share/man/ja/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/pl/man1/editor.1.gz because associated file /usr/share/man/pl/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ru/man1/editor.1.gz because associated file /usr/share/man/ru/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/tr/man1/editor.1.gz because associated file /usr/share/man/tr/man1/vim.1.gz (of link group editor) doesn't exist
+update-alternatives: using /usr/bin/vim.tiny to provide /usr/bin/ex (ex) in auto mode
+update-alternatives: warning: skip creation of /usr/share/man/man1/ex.1.gz because associated file /usr/share/man/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/da/man1/ex.1.gz because associated file /usr/share/man/da/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/de/man1/ex.1.gz because associated file /usr/share/man/de/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/fr/man1/ex.1.gz because associated file /usr/share/man/fr/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/it/man1/ex.1.gz because associated file /usr/share/man/it/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ja/man1/ex.1.gz because associated file /usr/share/man/ja/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/pl/man1/ex.1.gz because associated file /usr/share/man/pl/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ru/man1/ex.1.gz because associated file /usr/share/man/ru/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/tr/man1/ex.1.gz because associated file /usr/share/man/tr/man1/vim.1.gz (of link group ex) doesn't exist
+update-alternatives: using /usr/bin/vim.tiny to provide /usr/bin/rview (rview) in auto mode
+update-alternatives: using /usr/bin/vim.tiny to provide /usr/bin/vi (vi) in auto mode
+update-alternatives: warning: skip creation of /usr/share/man/man1/vi.1.gz because associated file /usr/share/man/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/da/man1/vi.1.gz because associated file /usr/share/man/da/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/de/man1/vi.1.gz because associated file /usr/share/man/de/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/fr/man1/vi.1.gz because associated file /usr/share/man/fr/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/it/man1/vi.1.gz because associated file /usr/share/man/it/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ja/man1/vi.1.gz because associated file /usr/share/man/ja/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/pl/man1/vi.1.gz because associated file /usr/share/man/pl/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ru/man1/vi.1.gz because associated file /usr/share/man/ru/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/tr/man1/vi.1.gz because associated file /usr/share/man/tr/man1/vim.1.gz (of link group vi) doesn't exist
+update-alternatives: using /usr/bin/vim.tiny to provide /usr/bin/view (view) in auto mode
+update-alternatives: warning: skip creation of /usr/share/man/man1/view.1.gz because associated file /usr/share/man/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/da/man1/view.1.gz because associated file /usr/share/man/da/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/de/man1/view.1.gz because associated file /usr/share/man/de/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/fr/man1/view.1.gz because associated file /usr/share/man/fr/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/it/man1/view.1.gz because associated file /usr/share/man/it/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ja/man1/view.1.gz because associated file /usr/share/man/ja/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/pl/man1/view.1.gz because associated file /usr/share/man/pl/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/ru/man1/view.1.gz because associated file /usr/share/man/ru/man1/vim.1.gz (of link group view) doesn't exist
+update-alternatives: warning: skip creation of /usr/share/man/tr/man1/view.1.gz because associated file /usr/share/man/tr/man1/vim.1.gz (of link group view) doesn't exist
+Setting up ca-certificates (20250419+deb13u1) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (No usable dialog-like program is installed, so the dialog based frontend cannot be used. at /usr/share/perl5/Debconf/FrontEnd/Dialog.pm line 79.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/aarch64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8.)
+debconf: falling back to frontend: Teletype
+Updating certificates in /etc/ssl/certs...
+148 added, 0 removed; done.
+Setting up libreadline8t64:arm64 (8.2-6) ...
+Setting up jq (1.7.1-6+deb13u4) ...
+Setting up libpython3.13-stdlib:arm64 (3.13.5-2+deb13u5) ...
+Setting up libpython3-stdlib:arm64 (3.13.5-1) ...
+Setting up python3.13 (3.13.5-2+deb13u5) ...
+Setting up python3 (3.13.5-1) ...
+running python rtupdate hooks for python3.13...
+running python post-rtupdate hooks for python3.13...
+Processing triggers for libc-bin (2.41-12+deb13u4) ...
+Processing triggers for ca-certificates (20250419+deb13u1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+done.
+[?2004hdebian-uml:/# jq --version;python3 --version;dpkg - -audit;head -n 1 /root/vi-test.txt
+[?2004ljq-1.7
+Python 3.13.5
+Edited in vi on the Android UML guest.
+[?2004hdebian-uml:/# vi /root/debian-editor-test.conf
+[?2004l[?1049h[22;0;0t[>4;2m[?1h=[?2004h[1;19r[?12h[?12l[22;2t[22;1t[27m[23m[29m[m[H[2J[?25l[19;1H"~/debian-editor-test.conf" [New File][2;1H[94m~                                                  [3;1H~                                                  [4;1H~                                                  [5;1H~                                                  [6;1H~                                                  [7;1H~                                                  [8;1H~                                                  [9;1H~                                                  [10;1H~                                                  [11;1H~                                                  [12;1H~                                                  [13;1H~                                                  [14;1H~                                                  [15;1H~                                                  [16;1H~                                                  [17;1H~                                                  [18;1H~                                                  [1;1H[?25h[?4m[?2004l[>4;m[?25l[mU[?25h[?25lM[?25h[?25lL[?25h[?25l_[?25h[?25lD[?25h[?25lE[?25h[?25lB[?25h[?25lI[?25h[?25lA[?25h[?25lN[?25h[?25l_[?25h[?25lE[?25h[?25lD[?25h[?25lI[?25h[?25lT[?25h[?25lO[?25h[?25lR[?25h[?25l_[?25h[?25lO[?25h[?25lK[?25h[?25l=[?25h[?25l1[?25h[?25l[2;1H[K[2;1H[?25h[?2004h[>4;2m[?4m[?25l[19;1H[K[19;1H:w[?25hq[?25l[?2004l[>4;m"~/debian-editor-test.conf" [New File] 2 lines, 24
+bytes written[23;2t[23;1t
+[?2004l[?1l>[?1049l[23;0;0t[?25h[>4;m[?2004hdebian-uml:/# cat /root/debian-editor-test.conf
+[?2004lUML_DEBIAN_EDITOR_OK=1
+
+[?2004hdebian-uml:/# poweroff
+[?2004lstarting pid 3054, tty '': '/bin/sync'
+[?2004hdebian-uml:/# starting pid 3055, tty '': '/bin/umount -a -r'
+EXT4-fs (ubda): re-mounted ebc3cd82-7030-447b-b600-d8b6200d80de ro.
+The system is going down NOW!
+Sent SIGTERM to all processes
+Sent SIGKILL to all processes
+Requesting system poweroff
+reboot: Power down
+

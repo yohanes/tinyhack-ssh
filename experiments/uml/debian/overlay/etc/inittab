@@ -1,0 +1,6 @@
+::sysinit:/usr/local/sbin/uml-boot
+tty0::respawn:/usr/local/sbin/uml-login
+::ctrlaltdel:/usr/local/libexec/busybox reboot
+::shutdown:/bin/sync
+::shutdown:/bin/umount -a -r
+::restart:/init
