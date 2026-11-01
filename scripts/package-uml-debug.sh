@@ -11,5 +11,6 @@ if [[ -f "$WORK/artifacts/passt" ]]; then
     cp "$WORK/artifacts/umnet" "$WORK/jniLibs/arm64-v8a/libuml-net.so"
 fi
 cd "$PROJECT"
+"$PROJECT/scripts/package-uml-runtime.sh"
 ./gradlew -PumlExperiment assemblePlayDebug
 cp app/build/outputs/apk/play/debug/app-play-debug.apk "$WORK/tinyhack-uml-debug.apk"

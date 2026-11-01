@@ -46,8 +46,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 5
-versionName "1.0.4"
+versionCode 6
+versionName "1.1.0"
 ```
 
 Rules:
@@ -113,7 +113,8 @@ GOTOOLCHAIN=go1.27.3 JOBS="$(nproc)" scripts/rebuild-userland-16kb.sh
 ```
 
 The script rebuilds the bundled executables and verifies their ELF LOAD
-alignment. Every line in the final report must say `OK` with `0x4000`.
+alignment. Every line must be `OK`; LOAD alignment must be at least 16 KiB
+and a multiple of 16 KiB (the UML kernel uses `0x10000`).
 
 The Gradle CMake build applies the same 16 KiB linker setting to
 `libghostty-android.so` and `libaskpass.so`.
@@ -121,6 +122,16 @@ The Gradle CMake build applies the same 16 KiB linker setting to
 Do not continue if any native file reports `0x1000`, `0x2000`, or `FAIL`.
 
 ## 5. Build and test on the connected device
+
+UML now ships in both distributions. Rebuild it with
+`scripts/build-uml-kernel.sh`, `scripts/build-uml-network.sh`, and
+`scripts/package-uml-runtime.sh` (NDK r27c for UML; override with `UML_NDK`).
+Retain the pinned Debian template in `app/src/main/assets/usr/share/uml/`.
+The `.gzip` suffix is intentional: Android expands `.gz` assets automatically.
+Run `uv run scripts/fetch-debian-template-sources.py` and retain the exact
+glibc/cross-toolchain sources before generating the corresponding-source archive.
+Verify `uml-env create -n releasecheck -d 512M -u user` works with no manually
+installed template, then check sudo, APT, sparse allocation and profile launch.
 
 Build lint and both debug APKs:
 
@@ -205,7 +216,7 @@ done
 ```
 
 `zipalign` must report `Verification successful`; all ELF alignment values must
-be `0x4000`.
+be at least `0x4000` and a multiple of `0x4000`.
 
 ## 6. Build and sign the Play AAB
 
@@ -256,7 +267,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-(cd release && sha256sum -c tinyhack-ssh-1.0.4-source.tar.xz.sha256)
+(cd release && sha256sum -c tinyhack-ssh-1.1.0-source.tar.xz.sha256)
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -264,8 +275,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.0.4-source.tar.xz
-release/tinyhack-ssh-1.0.4-source.tar.xz.sha256
+release/tinyhack-ssh-1.1.0-source.tar.xz
+release/tinyhack-ssh-1.1.0-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish
@@ -391,7 +402,7 @@ and screenshots free of features that exist only in the F-Droid/direct build.
 - [ ] Intended commit/tag selected and working tree reviewed
 - [ ] `versionCode` incremented and `versionName` correct
 - [ ] Upload key and `.env.release` backed up and protected
-- [ ] Native rebuild reports only `0x4000`
+- [ ] Native LOAD alignment is at least 16 KiB and a multiple of 16 KiB
 - [ ] Both flavor lint/builds succeed
 - [ ] F-Droid debug APK installed and full device smoke test passes
 - [ ] Notification pre-permission disclosure tested

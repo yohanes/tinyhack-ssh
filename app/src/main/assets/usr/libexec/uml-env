@@ -55,7 +55,8 @@ create)
     [[ ${BASH_REMATCH[2]} == M ]] || mb=$((mb * 1024))
     (( mb >= 512 && mb <= 1048576 )) || fail 'Disk size must be between 512M and 1024G.'
     template="$BASE/templates/debian.ext4.gz"
-    [[ -f "$template" ]] || fail 'Debian template missing. Install it with scripts/install-uml-env.sh on the host.'
+    [[ -f "$template" ]] || template="$HOME/../usr/share/uml/debian-05a1e473306ab6ed.ext4.gzip"
+    [[ -f "$template" ]] || fail 'Debian template missing. Restart the app to finish installing its bundled files.'
     [[ -f "$NATIVE/libuml.so" ]] || fail 'This app build does not include UML.'
     [[ -f "$NATIVE/libuml-sparse-image.so" ]] || fail 'Update the app to install the sparse image utility.'
     mkdir -p "$ENVS"

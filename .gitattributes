@@ -1,0 +1,4 @@
+# Preserve raw terminal evidence and unified-diff context verbatim.
+experiments/**/results/*console.txt -whitespace
+experiments/uml/env-results/*.txt -whitespace
+patches/*.patch -whitespace

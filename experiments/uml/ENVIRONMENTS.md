@@ -1,11 +1,17 @@
 # Named UML environments
 
-The experimental APK provides `uml-env` in its Bash local shells. Each
+Tinyhack SSH 1.1.0 provides `uml-env` in its Bash local shells. Each
 named environment has an independent writable Debian disk, user account,
 console log, and temporary directory. Existing `~/uml/debian.ext4` and the
 original BusyBox experiment are preserved.
 
 ## Install
+
+Install Tinyhack SSH and open a Local Shell. The UML kernel and compressed
+Debian template are bundled in the app; ADB and a separate template download
+are not required. UML remains an experimental feature.
+
+## Rebuild from source
 
 Build the UML kernel/network helpers and experimental app as described in
 [README.md](README.md), then build and install the environment template:
@@ -19,7 +25,8 @@ scripts/install-uml-env.sh
 
 The template builder reuses the pinned Debian export and static BusyBox from
 `scripts/build-uml-debian.sh`, invoking that builder if they are missing.
-The template is a compressed 256 MB ext4 filesystem; it is distinct from the
+The template is a compressed 256 MB ext4 filesystem (about 32 MB compressed);
+it is distinct from the
 4 GB standalone Debian image. Installing a template never replaces an existing
 environment. Open a new Local Shell after updating the app.
 
@@ -83,6 +90,11 @@ Failed creation retains its disk and log for diagnosis and does not appear in
 `list` or the profile picker. Inspect `console.log`, resolve the problem, and
 create with a new name. You may remove the failed directory after verifying
 that its guest has stopped. Never delete or replace a running guest's disk.
+
+The bundled template lives under `~/../usr/share/uml/` with a content-addressed
+filename. An explicitly installed `~/uml/templates/debian.ext4.gz` takes
+precedence for development. The `.gzip` suffix prevents Android's asset packager
+from automatically expanding the compressed image.
 
 The interactive command is a Bash function that invokes a script through the
 bundled interpreter, as required by Android's executable-file restrictions.

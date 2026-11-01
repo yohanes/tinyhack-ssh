@@ -294,6 +294,20 @@ public class BootstrapInstaller {
     }
 
     private static void copyAssetFile(Context context, String assetPath, File targetFile) throws IOException {
+        // Templates are immutable and content-addressed; avoid copying 32 MB on
+        // every activity restart. A partial copy never gets its final name.
+        if (assetPath.startsWith("usr/share/uml/") && assetPath.endsWith(".ext4.gzip")) {
+            if (targetFile.isFile()) return;
+            File temporary = new File(targetFile.getPath() + ".partial");
+            try (InputStream in = context.getAssets().open(assetPath);
+                 OutputStream out = new FileOutputStream(temporary)) {
+                byte[] buffer = new byte[65536];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+            }
+            if (!temporary.renameTo(targetFile)) throw new IOException("Cannot install UML template");
+            return;
+        }
         try (InputStream in = context.getAssets().open(assetPath);
              OutputStream out = new FileOutputStream(targetFile)) {
             byte[] buffer = new byte[8192];

@@ -1,8 +1,10 @@
 # ARM64 UML exploration
 
 Branch: `explore/uml-arm64`. The pre-existing uncommitted 1.0.4 security
-update remains intact on this branch. No experimental binaries are added to
-normal release builds.
+update was developed alongside this work. Starting with 1.1.0, the UML kernel
+and Debian template ship in normal releases; the `.uml` app ID remains available
+for isolated development builds. The validation below records the initial
+experiment before release integration.
 
 For named Debian environments, user accounts with sudo, and local-profile
 selection, see [uml-env usage](ENVIRONMENTS.md).

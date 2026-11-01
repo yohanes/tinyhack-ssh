@@ -1,5 +1,22 @@
 # Release notes
 
+## 1.1.0 (version code 6) — UML Debian environments, 2026-11-01
+
+- Bundle the experimental ARM64 User-Mode Linux kernel and Debian template in
+  the main app; no root or ADB setup is required.
+- Add `uml-env create -t debian -n NAME -d SIZE -u USER`, `uml-env start NAME`,
+  and `uml-env list`. Environments have independent persistent sparse disks.
+- Create the selected Linux user with passwordless sudo; use normal Debian
+  APT repositories to install packages. Initial creation requires internet.
+- Choose named environments in LOCAL connection profiles.
+- Preserve zero-filled template regions as sparse holes; a tested 1 GiB disk
+  used about 125 MiB after initial Debian and sudo setup.
+- Align the UML stub for Android's 16 KiB page-size packaging requirements.
+- Include the security refresh below, which was prepared as 1.0.4 but not published.
+
+UML remains experimental. Packages requiring additional kernel features,
+hardware, or systemd services may need additional setup.
+
 ## 1.0.4 (version code 5) — security refresh, 2026-11-01
 
 - Update Ghostty's terminal core to v1.4.0, pinned to

@@ -17,7 +17,11 @@ for artifact in "$AAB" "$APK"; do
     unzip -q "$artifact" '*arm64-v8a/*.so' -d "$directory"
     while IFS= read -r -d '' elf; do
         alignments=$(readelf -lW "$elf" | awk '/ LOAD / {print $NF}' | sort -u)
-        [[ "$alignments" == "0x4000" ]] || {
+        valid=true
+        for alignment in $alignments; do
+            (( alignment >= 0x4000 && alignment % 0x4000 == 0 )) || valid=false
+        done
+        [[ -n "$alignments" && "$valid" == true ]] || {
             echo "Invalid ELF alignment in $elf: $alignments" >&2
             exit 1
         }

@@ -1,0 +1,13 @@
+diff --git a/arch/um/kernel/skas/Makefile b/arch/um/kernel/skas/Makefile
+index df602bfee..61428c9a2 100644
+--- a/arch/um/kernel/skas/Makefile
++++ b/arch/um/kernel/skas/Makefile
+@@ -39,7 +39,7 @@ quiet_cmd_stub_exe = STUB_EXE $@
+ # which surfaces as the *guest* failing to start with -ENOMEM, because
+ # start_userspace() cannot exec the stub. Merging rodata into the text segment
+ # leaves one loadable segment, which is what -n was written for.
+-STUB_EXE_LDFLAGS = -Wl,-n -Wl,--no-rosegment -static
++STUB_EXE_LDFLAGS = -Wl,-z,max-page-size=16384 -Wl,--no-rosegment -static
+ 
+ targets += stub_exe.dbg stub_exe $(stub_exe_objs-y)
+ 

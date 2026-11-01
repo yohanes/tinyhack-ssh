@@ -35,6 +35,11 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
   - Android abstract-Unix-socket agent with peer-UID validation; sessions get `SSH_AUTH_SOCK` injected automatically.
   - Signs with Ed25519/RSA identities and FIDO/OpenSSH `-sk` security keys from the Keystore (fingerprint/device-auth unlock, 5-minute authorization window).
 - **Multi-Session & Connection Profiles**:
+  - Named Debian UML environments with sparse persistent disks, configurable
+    size/user, sudo, and APT: `uml-env create -t debian -n devenv -d 1024M -u user`,
+    then `uml-env start devenv`. Choose an environment in a LOCAL profile for
+    one-tap launch. The kernel and template are bundled; initial creation needs
+    internet. See [UML environment usage](experiments/uml/ENVIRONMENTS.md).
   - Drawer-based session list: switch, rename (long-press), close.
   - Connection profiles (LOCAL / SSH / MOSH) with host, port, username, key, shell, cwd, env, and extra args (ssh or mosh, e.g. `--predict=always`); one-tap connect into a new session.
   - SSH agent forwarding, Kitty graphics, OSC 52 clipboard writes, and OSC 99 notifications are separate per-profile opt-ins and default off.

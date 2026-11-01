@@ -65,3 +65,27 @@ The exact copyright notices and license texts are included in the APK under
 `assets/licenses/` and are accessible from the in-app About screen. The original
 font names are used for upstream fonts; the patched JetBrains font is identified
 as a Nerd Font in both its embedded metadata and these notices.
+
+## UML Debian environments (1.1.0)
+
+- ARM64 User-Mode Linux: Linux 7.2.0-rc4 port at
+  `32e5e10b81d8882bdaf77b71e4106a941840c750` from
+  https://github.com/zalexdev/linux-um-arm64, with the tracked networking and
+  ELF-alignment patches. GPL-2.0; see `linux-uml.GPL-2.0`.
+- passt at `6aa4f88bd9846411edff3ed70460475b538addca`, GPL-2.0-or-later
+  with per-file BSD terms; see `passt.GPL-2.0-or-later` and its source LICENSES.
+  The UML networking adapter is part of the Linux port's source tree.
+- musl libc linked into passt: see `musl.COPYRIGHT`; corresponding musl source
+  is included in the release source archive.
+- Debian 13 ARM64 slim template, official image index digest
+  `sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4`.
+  Its packages retain their copyright and license notices under
+  `/usr/share/doc` inside the image. Exact Debian source packages and checksums
+  are retained in the release's corresponding-source archive.
+- The template's static BusyBox 1.38.0 uses GNU libc from Ubuntu
+  `2.43-2ubuntu2cross1` (cross-toolchain-base 80ubuntu3). BusyBox source,
+  configuration, GNU libc source, and cross-toolchain source are retained in
+  the release archive. GNU libc is LGPL-2.1-or-later; see its source COPYING.LIB.
+
+The UML port remains experimental. Guest package installation connects directly
+from the device to the user's configured Debian repositories.
