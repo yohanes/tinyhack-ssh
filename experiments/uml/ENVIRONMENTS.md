@@ -68,7 +68,33 @@ sudo poweroff
 Use `sudo poweroff` to shut down cleanly before closing the session. Files,
 packages, and user settings persist across starts. The same environment cannot
 be started twice concurrently; different environments use separate disks.
-To change guest RAM, run `UML_MEMORY=1G uml-env start devenv` (default: 512M).
+To save guest RAM for future starts, run:
+
+```sh
+uml-env config devenv --memory 4G
+uml-env config devenv                  # show saved memory
+uml-env start devenv
+```
+
+Memory accepts whole-number `M` (MiB) or `G` (GiB), from 256 MiB to 64 GiB;
+the initial default is 512 MiB. Leave RAM for Android and other apps. Changes
+apply on the next guest start; they do not resize a running guest or its disk.
+`uml-env create ... --memory 4G` also saves memory at creation time.
+For one boot, use `uml-env start devenv --memory 2G` or the existing
+`UML_MEMORY=2G uml-env start devenv`. Precedence is explicit `--memory`, then
+`UML_MEMORY`, then the environment's saved memory, then 512 MiB.
+
+In a LOCAL profile, selecting a Debian environment shows **Memory (MiB)**.
+For example, enter `4096` for 4 GiB or `8192` for 8 GiB. This profile override
+is saved and included in profile exports. Leave it blank to inherit the
+environment setting (or `UML_MEMORY` in the profile's environment variables).
+
+The current bundled kernel provides **one virtual CPU per environment**
+(`CONFIG_SMP` disabled, `CONFIG_NR_CPUS=1`). Guest programs may use multiple
+threads, but those threads share one CPU. The ARM64 UML source supports SMP
+in its seccomp execution mode; the ptrace mode used by the tested Android
+build forces one CPU even in an SMP-enabled kernel. A CPU-count option alone
+would therefore not enable parallel execution in this release.
 Debian package hardware/kernel/service limitations remain as described in the
 [Debian instructions](debian/README.md).
 

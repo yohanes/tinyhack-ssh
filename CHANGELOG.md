@@ -1,5 +1,11 @@
 # Release notes
 
+## 1.1.2 (version code 8) — Configurable UML memory, 2026-11-02
+
+- Add saved UML memory configuration (`uml-env config NAME --memory 4G`),
+  creation/start overrides, and a Memory (MiB) field for local UML profiles.
+  Existing environments keep the 512 MiB default unless configured otherwise.
+
 ## 1.1.1 (version code 7) — UML console wakeup fix, 2026-11-02
 
 - Fix UML console input occasionally waiting for another keypress before the

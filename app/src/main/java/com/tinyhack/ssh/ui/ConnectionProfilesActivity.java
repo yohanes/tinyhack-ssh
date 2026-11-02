@@ -191,6 +191,20 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
         spinnerUml.setAdapter(new ArrayAdapter<>(ctx, android.R.layout.simple_spinner_dropdown_item, umlNames));
         spinnerUml.setSelection(selectedUml == null ? 0 : Math.max(0, umlNames.indexOf(selectedUml)));
         layout.addView(spinnerUml);
+        TextView memoryLabel = new TextView(ctx);
+        memoryLabel.setText("Memory (MiB)");
+        memoryLabel.setPadding(0, pad, 0, 0);
+        layout.addView(memoryLabel);
+        EditText editMemory = new EditText(ctx);
+        editMemory.setInputType(InputType.TYPE_CLASS_NUMBER);
+        editMemory.setSingleLine(true);
+        editMemory.setHint("Environment default (initially 512)");
+        editMemory.setText(editing.getUmlMemoryMb() == 0 ? "" : String.valueOf(editing.getUmlMemoryMb()));
+        layout.addView(editMemory);
+        TextView memoryHint = new TextView(ctx);
+        memoryHint.setText("256–65536 MiB. 4096 = 4 GiB; 8192 = 8 GiB. Leave RAM for Android and other apps. Applies on the next start. Blank uses the environment setting.");
+        memoryHint.setTextSize(11);
+        layout.addView(memoryHint);
         TextView shellLabel = new TextView(ctx);
         shellLabel.setText("Shell (optional, e.g. /data/data/.../usr/bin/bash)");
         shellLabel.setTextColor(0xFFAAAAAA);
@@ -404,6 +418,10 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             int visLocal = isRemote ? View.GONE : View.VISIBLE;
             umlLabel.setVisibility(visLocal);
             spinnerUml.setVisibility(visLocal);
+            int visUml = !isRemote && spinnerUml.getSelectedItemPosition() > 0 ? View.VISIBLE : View.GONE;
+            memoryLabel.setVisibility(visUml);
+            editMemory.setVisibility(visUml);
+            memoryHint.setVisibility(visUml);
             int visShell = !isRemote && spinnerUml.getSelectedItemPosition() == 0 ? View.VISIBLE : View.GONE;
             hostLabel.setText(t == 2 ? "Host" : "SSH Host");
             portLabel.setText(t == 2 ? "SSH Port (bootstrap)" : "SSH Port");
@@ -483,6 +501,20 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             }
             ConnectionProfile.Type type = spinnerType.getSelectedItemPosition() == 2 ? ConnectionProfile.Type.MOSH
                     : (spinnerType.getSelectedItemPosition() == 1 ? ConnectionProfile.Type.SSH : ConnectionProfile.Type.LOCAL);
+            int memoryMb = 0;
+            if (type == ConnectionProfile.Type.LOCAL && spinnerUml.getSelectedItemPosition() > 0) {
+                String memoryText = editMemory.getText().toString().trim();
+                if (!memoryText.isEmpty()) {
+                    try {
+                        memoryMb = Integer.parseInt(memoryText);
+                        if (memoryMb == 0 || !ConnectionProfile.isValidUmlMemoryMb(memoryMb)) throw new NumberFormatException();
+                    } catch (NumberFormatException e) {
+                        editMemory.setError("Enter 256–65536 MiB, or leave blank for the environment default");
+                        editMemory.requestFocus();
+                        return;
+                    }
+                }
+            }
             editing.setName(name);
             editing.setType(type);
             editing.setKittyGraphicsEnabled(checkKittyGraphics.isChecked());
@@ -490,6 +522,7 @@ public class ConnectionProfilesActivity extends AppCompatActivity implements Pro
             editing.setTerminalNotificationsEnabled(checkNotifications.isChecked());
             if (type == ConnectionProfile.Type.LOCAL) {
                 editing.setUmlEnvironment(spinnerUml.getSelectedItemPosition() == 0 ? null : (String) spinnerUml.getSelectedItem());
+                editing.setUmlMemoryMb(memoryMb);
                 String sh = editShell.getText().toString().trim();
                 editing.setShell(sh.isEmpty() ? null : sh);
                 String cwd = editCwd.getText().toString().trim();

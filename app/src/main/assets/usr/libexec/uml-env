@@ -4,21 +4,37 @@ umask 077
 BASE="$HOME/uml"
 ENVS="$BASE/envs"
 NATIVE=$(dirname "$(readlink /proc/$$/exe)")
+memory=
 fail() { echo "uml-env: $*" >&2; exit 1; }
 usage() {
-    echo 'uml-env create -t debian -n NAME -d SIZE -u USER'
-    echo 'uml-env start NAME'
+    echo 'uml-env create -t debian -n NAME -d SIZE -u USER [--memory SIZE]'
+    echo 'uml-env start NAME [--memory SIZE]'
+    echo 'uml-env config NAME [--memory SIZE]'
     echo 'uml-env list'
     echo 'Sizes: 512M or larger, e.g. 1024M, 4G. Creation needs internet access.'
+    echo 'Memory: 256M through 64G; default 512M. Config changes apply on next start.'
 }
 valid_name() { [[ $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,47}$ ]]; }
+normalize_memory() {
+    [[ $1 =~ ^([1-9][0-9]{0,5})([MG])$ ]] || fail 'Memory must be an integer followed by M or G, e.g. 4096M or 4G.'
+    local mb=${BASH_REMATCH[1]}
+    [[ ${BASH_REMATCH[2]} == M ]] || mb=$((mb * 1024))
+    (( mb >= 256 && mb <= 65536 )) || fail 'Memory must be between 256M and 64G.'
+    printf '%sM' "$mb"
+}
+saved_memory() {
+    if [[ -f "$DIR/memory" ]]; then cat "$DIR/memory"; else printf '512M'; fi
+}
+resolve_memory() {
+    memory=$(normalize_memory "${memory:-${UML_MEMORY:-$(saved_memory)}}")
+}
 run_guest() {
     local mode=$1
     exec 9>"$DIR/run.lock"
     flock -n 9 || fail 'This environment is already running.'
     mkdir -p "$DIR/tmp"
     export TMPDIR="$DIR/tmp" PASST_NO_SANDBOX=1
-    local command=("$NATIVE/libuml.so" "mem=${UML_MEMORY:-512M}" "ubd0=$DIR/disk.ext4" root=/dev/ubda rw init=/init con=null con0=fd:0,fd:1 "stub_exe=$NATIVE/libuml-stub.so")
+    local command=("$NATIVE/libuml.so" "mem=$memory" "ubd0=$DIR/disk.ext4" root=/dev/ubda rw init=/init con=null con0=fd:0,fd:1 "stub_exe=$NATIVE/libuml-stub.so")
     [[ $mode == create ]] && command+=("uml_create=$user")
     [[ -f "$NATIVE/libuml-net.so" ]] || fail 'UML networking is not installed.'
     command=("$NATIVE/libuml-net.so" --passt "$NATIVE/libuml-passt.so" -- "${command[@]}")
@@ -43,6 +59,7 @@ create)
         case "$1" in
             -t|--type) type=$2 ;; -n|--name) name=$2 ;;
             -d|--disk-size) size=$2 ;; -u|--user) user=$2 ;;
+            --memory) memory=$2 ;;
             *) fail "Unknown option: $1" ;;
         esac
         shift 2
@@ -61,7 +78,9 @@ create)
     [[ -f "$NATIVE/libuml-sparse-image.so" ]] || fail 'Update the app to install the sparse image utility.'
     mkdir -p "$ENVS"
     DIR="$ENVS/$name"
+    resolve_memory
     mkdir "$DIR" 2>/dev/null || fail "Environment already exists: $name"
+    printf '%s\n' "$memory" > "$DIR/memory"
     # Keep interrupted creation for diagnosis; it is never listed as ready.
     gzip -dc "$template" | "$NATIVE/libuml-sparse-image.so" "$DIR/disk.ext4" "$((mb * 1024 * 1024))"
     printf '%s\n' "$type" > "$DIR/type"
@@ -72,11 +91,29 @@ create)
     touch "$DIR/ready"
     echo "Created $name. Enter with: uml-env start $name" ;;
 start)
-    [[ $# == 1 ]] || fail 'Usage: uml-env start NAME'
+    [[ $# == 1 || ( $# == 3 && $2 == --memory ) ]] || fail 'Usage: uml-env start NAME [--memory SIZE]'
     valid_name "$1" || fail 'Invalid environment name.'
     DIR="$ENVS/$1"
     [[ -f "$DIR/ready" && -f "$DIR/disk.ext4" ]] || fail "Environment not found or creation incomplete: $1"
+    [[ $# == 1 ]] || memory=$3
+    resolve_memory
     # Kernel UBD locking also prevents a disk from being opened by two guests.
     run_guest start ;;
+config)
+    [[ $# == 1 || ( $# == 3 && $2 == --memory ) ]] || fail 'Usage: uml-env config NAME [--memory SIZE]'
+    valid_name "$1" || fail 'Invalid environment name.'
+    DIR="$ENVS/$1"
+    [[ -f "$DIR/ready" && -f "$DIR/disk.ext4" ]] || fail "Environment not found or creation incomplete: $1"
+    if [[ $# == 3 ]]; then
+        memory=$(normalize_memory "$3")
+        # Atomic replacement allows configuring the next boot while a guest runs.
+        config_tmp=$(mktemp "$DIR/.memory.XXXXXX")
+        printf '%s\n' "$memory" > "$config_tmp"
+        mv -f "$config_tmp" "$DIR/memory"
+        echo 'Memory saved; applies on the next start.'
+    fi
+    memory=$(normalize_memory "$(saved_memory)")
+    printf 'Memory: %s\n' "$memory"
+    ;;
 *) usage >&2; exit 1 ;;
 esac

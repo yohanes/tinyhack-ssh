@@ -661,6 +661,10 @@ public class TerminalService extends Service {
                 cmd = new File(getApplicationInfo().nativeLibraryDir, "libbash.so").getAbsolutePath();
                 argv = new String[]{"bash", new File(getFilesDir(), "usr/libexec/uml-env").getAbsolutePath(),
                         "start", profile.getUmlEnvironment()};
+                if (profile.getUmlMemoryMb() > 0) {
+                    argv = new String[]{"bash", new File(getFilesDir(), "usr/libexec/uml-env").getAbsolutePath(),
+                            "start", profile.getUmlEnvironment(), "--memory", profile.getUmlMemoryMb() + "M"};
+                }
                 workDir = homeDir;
             }
             // Parse env

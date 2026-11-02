@@ -28,4 +28,25 @@ mkdir -p "$TEST_HOME/uml/envs/ready-env" "$TEST_HOME/uml/envs/incomplete"
 touch "$TEST_HOME/uml/envs/ready-env/ready"
 touch "$TEST_HOME/uml/envs/ready-env/disk.ext4"
 [[ $(HOME="$TEST_HOME" bash "$CLI" list) == ready-env ]]
+[[ $(HOME="$TEST_HOME" bash "$CLI" config ready-env) == 'Memory: 512M' ]]
+HOME="$TEST_HOME" bash "$CLI" config ready-env --memory 4G > "$TEST_HOME/output"
+[[ $(cat "$TEST_HOME/uml/envs/ready-env/memory") == 4096M ]]
+[[ $(HOME="$TEST_HOME" UML_MEMORY=8G bash "$CLI" config ready-env) == 'Memory: 4096M' ]]
+for invalid in 0G 128M 65G 999999G 1.5G 4GB 4096 '' '4G init=/bin/sh'; do
+    reject config ready-env --memory "$invalid"
+    [[ $(cat "$TEST_HOME/uml/envs/ready-env/memory") == 4096M ]]
+    reject start ready-env --memory "$invalid"
+done
+reject config ../escape --memory 4G
+reject config incomplete --memory 4G
+reject config missing --memory 4G
+reject config ready-env --memory
+reject config ready-env --cpu 4
+reject start ready-env --memory
+HOME="$TEST_HOME" bash "$CLI" config ready-env --memory 256M > "$TEST_HOME/output"
+[[ $(cat "$TEST_HOME/uml/envs/ready-env/memory") == 256M ]]
+HOME="$TEST_HOME" bash "$CLI" config ready-env --memory 64G > "$TEST_HOME/output"
+[[ $(cat "$TEST_HOME/uml/envs/ready-env/memory") == 65536M ]]
+printf 'broken\n' > "$TEST_HOME/uml/envs/ready-env/memory"
+reject config ready-env
 echo 'UML CLI validation tests passed.'

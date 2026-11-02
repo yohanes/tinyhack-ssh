@@ -50,6 +50,7 @@ public class ConnectionProfile {
     // LOCAL fields
     private String shell;
     private String umlEnvironment;
+    private int umlMemoryMb; // 0 inherits the environment's saved/default memory
     private String cwd;
     private String env; // newline separated KEY=VAL
 
@@ -109,6 +110,14 @@ public class ConnectionProfile {
     public String getShell() { return shell; }
     public String getUmlEnvironment() { return umlEnvironment; }
     public void setUmlEnvironment(String name) { umlEnvironment = name; }
+    public int getUmlMemoryMb() { return umlMemoryMb; }
+    public static boolean isValidUmlMemoryMb(int value) {
+        return value == 0 || (value >= 256 && value <= 65536);
+    }
+    public void setUmlMemoryMb(int value) {
+        if (!isValidUmlMemoryMb(value)) throw new IllegalArgumentException("UML memory must be 256–65536 MiB");
+        umlMemoryMb = value;
+    }
     public void setShell(String shell) { this.shell = shell; }
     public String getCwd() { return cwd; }
     public void setCwd(String cwd) { this.cwd = cwd; }
@@ -236,6 +245,7 @@ public class ConnectionProfile {
         o.put("updatedAt", updatedAt);
         o.put("shell", shell != null ? shell : "");
         o.put("umlEnvironment", umlEnvironment != null ? umlEnvironment : "");
+        o.put("umlMemoryMb", umlMemoryMb);
         o.put("cwd", cwd != null ? cwd : "");
         o.put("env", env != null ? env : "");
         o.put("host", host != null ? host : "");
@@ -277,6 +287,8 @@ public class ConnectionProfile {
         p.shell = s.isEmpty() ? null : s;
         s = o.optString("umlEnvironment", "");
         p.umlEnvironment = s.isEmpty() ? null : s;
+        int memoryMb = o.optInt("umlMemoryMb", 0);
+        p.umlMemoryMb = isValidUmlMemoryMb(memoryMb) ? memoryMb : 0;
         s = o.optString("cwd", "");
         p.cwd = s.isEmpty() ? null : s;
         s = o.optString("env", "");

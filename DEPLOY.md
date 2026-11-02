@@ -46,8 +46,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 7
-versionName "1.1.1"
+versionCode 8
+versionName "1.1.2"
 ```
 
 Rules:
@@ -267,7 +267,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-(cd release && sha256sum -c tinyhack-ssh-1.1.1-source.tar.xz.sha256)
+(cd release && sha256sum -c tinyhack-ssh-1.1.2-source.tar.xz.sha256)
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -275,8 +275,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.1.1-source.tar.xz
-release/tinyhack-ssh-1.1.1-source.tar.xz.sha256
+release/tinyhack-ssh-1.1.2-source.tar.xz
+release/tinyhack-ssh-1.1.2-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish

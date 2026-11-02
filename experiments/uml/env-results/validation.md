@@ -71,6 +71,17 @@ The template SHA-256 was checked on the phone:
 
 ## Checks and evidence
 
+Memory configuration was tested on the connected Moto G45 (Android 15) on
+2026-11-02 using the experimental debug app. A saved Local/UML profile with
+4096 MiB retained its value when reopened and booted with `MemTotal: 4166192 kB`.
+The profile dialog rejected zero. Separately, `uml-env config releasecheck
+--memory 2G` persisted `2048M`, and a CLI start without an override reported
+`MemTotal: 2079280 kB`. Both guests reported CPU `0` as the only online CPU and
+were powered off cleanly. Local evidence is in
+`build/uml/memory-profile-4g.log`, `build/uml/memory-profile.png`, and
+`build/uml/memory-config-2g.log`. The build and lint passed, as did CLI validation
+for memory bounds, malformed input, and corrupt saved configuration.
+
 - `scripts/test-uml-env.sh`: passed input validation and ready/incomplete listing.
 - `scripts/test-uml-sparse-image.sh`: passed content equality, logical capacity,
   allocated-block bound, refusal to overwrite, oversized input, and empty input.
