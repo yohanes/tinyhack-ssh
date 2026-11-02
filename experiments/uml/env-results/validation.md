@@ -1,5 +1,40 @@
 # Named environment validation — 2026-11-01
 
+## Console wakeup regression — 2026-11-02
+
+On Moto G45 / Android 15, the 1.1.0 kernel sometimes left the final typed byte
+waiting until another keypress. An isolated ADB PTY test reproduced five stalls
+in 150 bursts, without involving the Android renderer. Guest Bash under strace
+also reproduced it: after displaying `ls abc0044xy`, its blocking `pselect6`
+did not finish until another space arrived; Bash then read `z` and the space
+and displayed both. See [the trace excerpt](console-wakeup-trace.txt).
+
+Sending UML SIGIO, without supplying any input, also immediately released the
+queued final byte. The host tty can deliver SIGIO before its poll wakeup puts
+the event on UML's epoll ready list. The handler drains an empty list and the
+later ready event has no signal left to wake the guest.
+
+`patches/uml-console-wakeup.patch` makes the existing SIGIO helper watch the
+IRQ epoll descriptor on bionic. Its wakeup is therefore ordered after the IRQ
+ready event, with no periodic polling. The normal runtime was rebuilt and the
+separate UML debug APK updated in place, preserving existing environments.
+
+The patched kernel passed 1,000 bursts at 2 ms between bytes with **zero
+stalls**, versus the one-second failure threshold. Maximum time waiting for
+the completed echo after sending a burst was 61 ms. See
+[the result](console-wakeup-fixed.json). Reproduce with:
+
+```sh
+uv run scripts/test-uml-console.py releasecheck --adb /usr/bin/adb \
+  --count 1000 --label epoll-fix-2ms
+```
+
+Also booted the same environment through the app UI, typed `ls abc`, confirmed
+the full line appeared without another key, and powered off cleanly. The main
+release app was not replaced during these tests.
+
+## Environment creation and persistence
+
 Tested through the experimental app's terminal on Moto G45 / Android 15.
 
 - Created `devenv` with `-t debian -d 1024M -u user`; logged in as UID 1000

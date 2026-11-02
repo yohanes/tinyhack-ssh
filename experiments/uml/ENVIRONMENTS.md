@@ -107,3 +107,16 @@ bash "$HOME/../usr/libexec/uml-env" list
 Host-side tests: `scripts/test-uml-env.sh` and
 `scripts/test-uml-sparse-image.sh`. Device test
 results are recorded in [env-results](env-results/validation.md).
+
+Console wakeup regression on a connected device (use a stopped, disposable
+environment in the separate UML debug app, and launch that app once after
+installing its APK):
+
+```sh
+uv run scripts/test-uml-console.py releasecheck --count 1000
+```
+
+This boots the environment through ADB under the app UID, types rapid bursts
+without executing them, checks the complete echo before sending another key,
+and powers the guest off. Logs and JSON results go to `build/uml/`. It exercises
+the console independently of the Android renderer and does not create a disk.

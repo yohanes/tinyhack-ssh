@@ -1,0 +1,69 @@
+Subject: um: bionic: wake the IRQ loop when its epoll queue becomes ready
+
+The host tty's SIGIO may arrive before its poll wakeup queues the ready
+event. A fast UML SIGIO handler then observes an empty epoll queue, leaving
+the final input byte waiting until another key or I/O interrupt arrives.
+Reproduced with rapid Bash input on Android 15, independently of rendering;
+sending SIGIO without another input byte immediately releases the echo.
+
+On bionic, use the existing SIGIO helper to watch the IRQ epoll descriptor
+itself. This orders the additional wakeup after IRQ readiness and avoids
+periodic polling or dependence on the ordering of two tty poll callbacks.
+
+diff --git a/arch/um/include/shared/os.h b/arch/um/include/shared/os.h
+index 24b56cde2..a3d3d3717 100644
+--- a/arch/um/include/shared/os.h
++++ b/arch/um/include/shared/os.h
+@@ -307,6 +307,7 @@ extern int os_epoll_triggered(int index, int events);
+ extern int os_event_mask(enum um_irq_type irq_type);
+ extern int os_nr_cpus_online(void);
+ extern int os_setup_epoll(void);
++extern int os_get_epoll_fd(void);
+ extern int os_add_epoll_fd(int events, int fd, void *data);
+ extern int os_mod_epoll_fd(int events, int fd, void *data);
+ extern int os_del_epoll_fd(int fd);
+diff --git a/arch/um/os-Linux/irq.c b/arch/um/os-Linux/irq.c
+index cf7e49c08..82e7d58ab 100644
+--- a/arch/um/os-Linux/irq.c
++++ b/arch/um/os-Linux/irq.c
+@@ -63,6 +63,11 @@ int os_setup_epoll(void)
+ 	return epollfd;
+ }
+ 
++int os_get_epoll_fd(void)
++{
++	return epollfd;
++}
++
+ /*
+  * Helper to run the actual epoll_wait
+  */
+diff --git a/arch/um/os-Linux/sigio.c b/arch/um/os-Linux/sigio.c
+index 6de145f8f..0e8fadaf8 100644
+--- a/arch/um/os-Linux/sigio.c
++++ b/arch/um/os-Linux/sigio.c
+@@ -140,6 +140,24 @@ void maybe_sigio_broken(int fd)
+ 	if (!isatty(fd))
+ 		return;
+ 
++#ifdef __BIONIC__
++	/*
++	 * Android's host tty can send SIGIO before its poll wakeup has put
++	 * the input on our epoll ready list. If the SIGIO handler drains
++	 * epoll in that window, the final input byte waits for another key.
++	 * Watch the IRQ epoll fd itself so the helper sends a second wakeup
++	 * only after the ready list is populated. Watching the tty in a
++	 * separate epoll instance would still depend on wakeup ordering.
++	 */
++	int err;
++
++	sigio_broken();
++	err = add_sigio_fd(os_get_epoll_fd());
++	if (err && err != -EEXIST)
++		printk(UM_KERN_ERR "Failed to watch IRQ epoll fd: %d\n", err);
++	return;
++#endif
++
+ 	if (pty_output_sigio)
+ 		return;
+ 

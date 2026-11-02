@@ -1,0 +1,18 @@
+Baseline 1.1.0 UML kernel, Debian Bash under strace, Moto G45 Android 15.
+Burst 44: last byte delayed until the following space.
+
+00:37:37.217493 pselect6(1, [0], NULL, NULL, NULL, {sigmask=[], sigsetsize=8}) = 1 (in [0])
+00:37:37.225882 read(0, "x", 1)         = 1
+00:37:37.233240 pselect6(1, [0], NULL, [0], {tv_sec=0, tv_nsec=0}, {sigmask=NULL, sigsetsize=8}) = 1 (in [0], left {tv_sec=0, tv_nsec=0})
+00:37:37.240703 pselect6(1, [0], NULL, NULL, NULL, {sigmask=[], sigsetsize=8}) = 1 (in [0])
+00:37:37.248754 read(0, "y", 1)         = 1
+00:37:37.255493 pselect6(1, [0], NULL, [0], {tv_sec=0, tv_nsec=0}, {sigmask=NULL, sigsetsize=8}) = 0 (Timeout)
+00:37:37.262121 write(2, "ls abc0044xy", 12) = 12
+00:37:37.270163 pselect6(1, [0], NULL, NULL, NULL, {sigmask=[], sigsetsize=8}) = 1 (in [0])
+00:37:38.036951 read(0, "z", 1)         = 1
+00:37:38.043814 pselect6(1, [0], NULL, [0], {tv_sec=0, tv_nsec=0}, {sigmask=NULL, sigsetsize=8}) = 1 (in [0], left {tv_sec=0, tv_nsec=0})
+00:37:38.051673 pselect6(1, [0], NULL, NULL, NULL, {sigmask=[], sigsetsize=8}) = 1 (in [0])
+00:37:38.059316 read(0, " ", 1)         = 1
+00:37:38.066071 pselect6(1, [0], NULL, [0], {tv_sec=0, tv_nsec=0}, {sigmask=NULL, sigsetsize=8}) = 0 (Timeout)
+00:37:38.072517 write(2, "z ", 2)       = 2
+00:37:38.081214 pselect6(1, [0], NULL, NULL, NULL, {sigmask=[], sigsetsize=8}) = 1 (in [0])

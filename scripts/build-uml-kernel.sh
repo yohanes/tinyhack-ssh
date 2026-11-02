@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Experimental out-of-tree ARM64 UML port; not part of release builds.
+# Build the experimental ARM64 UML runtime bundled with the app.
 set -euo pipefail
 PROJECT=$(cd "$(dirname "$0")/.." >/dev/null && pwd)
 WORK="$PROJECT/build/uml"
@@ -22,6 +22,12 @@ else
     git -C "$TREE" apply --reverse --check "$PATCH"
 fi
 export TREE
+PATCH="$PROJECT/patches/uml-console-wakeup.patch"
+if git -C "$TREE" apply --check "$PATCH" 2>/dev/null; then
+    git -C "$TREE" apply "$PATCH"
+else
+    git -C "$TREE" apply --reverse --check "$PATCH"
+fi
 PATCH="$PROJECT/patches/uml-stub-page-alignment.patch"
 if git -C "$TREE" apply --check "$PATCH" 2>/dev/null; then
     git -C "$TREE" apply "$PATCH"

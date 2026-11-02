@@ -1,5 +1,11 @@
 # Release notes
 
+## 1.1.1 (version code 7) — UML console wakeup fix, 2026-11-02
+
+- Fix UML console input occasionally waiting for another keypress before the
+  final typed character appears. Wake the Android UML kernel after its epoll
+  event queue becomes ready, avoiding a race with host tty SIGIO delivery.
+
 ## 1.1.0 (version code 6) — UML Debian environments, 2026-11-01
 
 - Bundle the experimental ARM64 User-Mode Linux kernel and Debian template in

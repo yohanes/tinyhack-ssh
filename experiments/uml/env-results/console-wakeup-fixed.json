@@ -1,0 +1,6 @@
+{
+  "bursts": 1000,
+  "interval_seconds": 0.002,
+  "max_echo_wait_seconds": 0.06076791207306087,
+  "stalls": []
+}
