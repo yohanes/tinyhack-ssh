@@ -1,5 +1,10 @@
 # Release notes
 
+## 1.1.3 (version code 9) — UML console-close cleanup, 2026-11-02
+
+- Clean up UML and its network helper when its terminal closes, so the
+  environment can be started again instead of remaining locked by an orphan.
+
 ## 1.1.2 (version code 8) — Configurable UML memory, 2026-11-02
 
 - Add saved UML memory configuration (`uml-env config NAME --memory 4G`),

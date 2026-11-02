@@ -71,6 +71,15 @@ The template SHA-256 was checked on the phone:
 
 ## Checks and evidence
 
+Console-close regression (2026-11-02, Moto G45, Android 15): before the fix,
+disconnecting the outer PTY left `libuml.so` orphaned under PID 1. UML starts
+its own session and ignores SIGHUP, while the network launcher previously
+exited on SIGHUP without cleaning up its children. Handling SIGHUP through
+the launcher's existing shutdown path fixed the orphan. After rebuilding the
+launcher, `uv run scripts/test-uml-close.py releasecheck --adb /usr/bin/adb`
+passed two disconnect/reopen cycles and a final normal poweroff. Local log:
+`build/uml/console-close.log`.
+
 Memory configuration was tested on the connected Moto G45 (Android 15) on
 2026-11-02 using the experimental debug app. A saved Local/UML profile with
 4096 MiB retained its value when reopened and booted with `MemTotal: 4166192 kB`.

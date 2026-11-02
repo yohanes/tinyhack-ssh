@@ -68,6 +68,9 @@ sudo poweroff
 Use `sudo poweroff` to shut down cleanly before closing the session. Files,
 packages, and user settings persist across starts. The same environment cannot
 be started twice concurrently; different environments use separate disks.
+Closing the console terminates the guest and releases its lock; it does not
+detach a session that can later be reattached. Prefer `sudo poweroff` so guest
+applications and filesystems can finish their writes.
 To save guest RAM for future starts, run:
 
 ```sh
@@ -140,9 +143,12 @@ installing its APK):
 
 ```sh
 uv run scripts/test-uml-console.py releasecheck --count 1000
+uv run scripts/test-uml-close.py releasecheck
 ```
 
 This boots the environment through ADB under the app UID, types rapid bursts
 without executing them, checks the complete echo before sending another key,
 and powers the guest off. Logs and JSON results go to `build/uml/`. It exercises
 the console independently of the Android renderer and does not create a disk.
+The close regression disconnects the console twice and verifies that each
+subsequent start reaches the guest shell, then powers off the final guest.

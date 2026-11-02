@@ -1,5 +1,5 @@
 diff --git a/tools/um-arm64/harness/umnet.c b/tools/um-arm64/harness/umnet.c
-index 445be478f..876297891 100644
+index 445be478f..c7ca2ad8b 100644
 --- a/tools/um-arm64/harness/umnet.c
 +++ b/tools/um-arm64/harness/umnet.c
 @@ -53,14 +53,14 @@
@@ -48,7 +48,17 @@ index 445be478f..876297891 100644
  
  	for (i = 1; i < argc; i++) {
  		if (!strcmp(argv[i], "--verbose"))
-@@ -366,6 +374,7 @@ int main(int argc, char **argv)
+@@ -245,6 +253,9 @@ int main(int argc, char **argv)
+ 		setsockopt(uml_sp[1], SOL_SOCKET, SO_SNDBUF, &sz, sizeof(sz));
+ 	}
+ 
++	/* Closing the console must run child cleanup: UML starts its own
++	 * session and ignores SIGHUP, so it otherwise outlives this launcher. */
++	signal(SIGHUP, reap);
+ 	signal(SIGINT, reap);
+ 	signal(SIGTERM, reap);
+ 
+@@ -366,6 +377,7 @@ int main(int argc, char **argv)
  	 * between a diagnosis and a guess.
  	 */
  	kill(passt_pid, SIGTERM);
