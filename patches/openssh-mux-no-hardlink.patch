@@ -1,0 +1,45 @@
+--- a/mux.c
++++ b/mux.c
+@@ -1315,6 +1315,29 @@
+ 	sshbuf_free(m);
+ }
+ 
++#ifdef __ANDROID__
++/*
++ * Android forbids hard links in app data (SELinux), so the link() in
++ * muxserver_listen() fails with EACCES. Fall back to rename(). rename()
++ * silently replaces an existing socket, so keep link()'s "already exists"
++ * check with lstat() first; the small race only matters between two
++ * masters of the same app competing for one ControlPath.
++ */
++static int
++mux_rename_fallback(const char *tmp_path, const char *path)
++{
++	struct stat st;
++
++	if (errno != EACCES && errno != EPERM)
++		return -1;
++	if (lstat(path, &st) == 0) {
++		errno = EEXIST;
++		return -1;
++	}
++	return rename(tmp_path, path);
++}
++#endif
++
+ /* Prepare a mux master to listen on a Unix domain socket. */
+ void
+ muxserver_listen(struct ssh *ssh)
+@@ -1373,7 +1396,11 @@
+ 	}
+ 
+ 	/* Now atomically "move" the mux socket into position */
+-	if (link(options.control_path, orig_control_path) != 0) {
++	if (link(options.control_path, orig_control_path) != 0
++#ifdef __ANDROID__
++	    && mux_rename_fallback(options.control_path, orig_control_path) != 0
++#endif
++	    ) {
+ 		if (errno != EEXIST) {
+ 			fatal_f("link mux listener %s => %s: %s",
+ 			    options.control_path, orig_control_path,

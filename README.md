@@ -22,7 +22,7 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 - **Embedded BusyBox Suite (1.38.0)**: Over 270 user-space POSIX command-line utilities (`grep`, `sed`, `awk`, `find`, `tar`, `gzip`, `bzip2`, `xz`, `unzip`, `vi`, `less`, `tree`, `cal`, `bc`, `kill`, `pgrep`, `pkill`, `top`, `ps`, `nc`, `wget`, etc.) enabled for non-root execution.
 - **Embedded curl (8.23.0 + OpenSSL 3.5.9 LTS)**: Full standalone `curl` with HTTPS, Android's system CA trust store, redirects, compression, uploads, and common transfer protocols; no root or separate installation required.
 - **Embedded OpenSSH Suite (10.6p1 + OpenSSL 3.5.9 LTS)**: Built-in `ssh`, `ssh-keygen`, `ssh-keyscan`, `ssh-agent`, `ssh-add`, `scp`, and `sftp` binaries tailored for Android Bionic. OpenSSL is statically linked — ECDSA and security-key support without a runtime `libcrypto.so` dependency.
-- **Embedded rsync (3.5.1)**: Full `rsync` binary for local copies and over-SSH transfers; combined with Storage Access it can sync phone storage files.
+- **Embedded rsync (3.5.1)**: Full `rsync` binary for local copies and over-SSH transfers; with All files access it can sync phone storage files.
 - **Embedded Mosh (1.4.0)**: Roaming/low-latency remote terminal with local echo prediction (`mosh [user@]host`; UDP survives Wi-Fi changes and sleep). Ships with a native launcher replacing mosh.pl.
 - **Embedded cloudflared (2026.10.7)**: Cloudflare Tunnel client (`cloudflared access ssh --hostname`) for Zero Trust Access SSH. Works as `ProxyCommand` in `~/.ssh/config` (`Host x; ProxyCommand cloudflared access ssh --hostname %h`) and via connection-profile toggle "Use Cloudflare Access". Supports browser `cloudflared access login` and Service Token (`--id`/`--secret`) auth; CGO-enabled build fixes Android DNS.
 - **SSH Key Management UI**:
@@ -48,7 +48,12 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
   - Three-finger tap menu, scrollback, selection mode with copy bar.
   - **Fullscreen mode** via the three-finger menu (hides the toolbar, status bar, and navigation bar); **Open drawer** menu entry keeps sessions/profiles reachable while fullscreen.
   - Closing the app keeps sessions running as a foreground service; a persistent notification reopens the terminal and offers an **Exit** action that fully terminates the app.
-  - The F-Droid/direct-download build offers an optional **Storage Access** toggle that creates `~/storage -> /storage/emulated/0` so shells/rsync can reach phone files. The Google Play build omits both the permission and the toggle.
+  - An optional **Storage Access** setting creates `~/storage -> /storage/emulated/0` so shells/rsync can reach phone files once All files access is granted.
+- **File Manager with SCP / rsync / SFTP transfers**:
+  - Files screen (drawer, overflow menu, or quick menu): browse the app home and, after granting All files access, phone storage, SD cards, and Downloads.
+  - Copy, move, rename, delete, share, open with another app, edit in `vi`, create folders, sort by name/size/date, show hidden files, open a terminal in the current folder.
+  - Select files and **Upload to server** with `scp` or resumable `rsync`, **Download from server** into the current folder, or **Open SFTP here** for an interactive `sftp>` session. Transfers use the chosen SSH profile's host, port, key, Cloudflare Access, and transfer-safe extra options, and run in a terminal session so password/host-key prompts work.
+  - **Browse server**: a remote file browser for any saved SSH profile. Navigate, open, download (scp/rsync, several items at once), rename, delete, create folders, open an SSH terminal or SFTP session in the current remote folder, or pick the destination of an upload. It logs in once through an OpenSSH control master (silently with a prompt-free key, otherwise in a terminal), and every later listing and transfer reuses that login.
 - **Clickable Hyperlinks (OSC 8)**:
   - URIs embedded as `ESC]8;;https://example.com ESC\` are underlined and tappable; tap opens the URL.
   - By default shows a confirmation dialog with the (truncated) URL and **Open** / **Copy Link** / **Cancel**. The **Confirm URL click** setting now directly reflects that behavior, and only HTTP(S)/mailto links can open.
@@ -113,8 +118,10 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
 
 ### Distribution variants
 
-- `play`: Google Play build. It never declares `MANAGE_EXTERNAL_STORAGE` and cannot enable Storage Access.
-- `fdroid`: F-Droid/direct-download build. It declares `MANAGE_EXTERNAL_STORAGE`, but access remains off until the user enables Storage Access and grants Android's All files access setting.
+- `play`: Google Play build.
+- `fdroid`: F-Droid/direct-download build.
+
+Both declare `MANAGE_EXTERNAL_STORAGE` for the file manager, but access remains off until the user grants Android's All files access setting (from the file manager's **Allow** banner or the Storage Access setting, which additionally creates `~/storage`). Each shows an in-app explanation first. The flavors are kept so the Play build can drop the permission again (`STORAGE_ACCESS_AVAILABLE` in `app/build.gradle` plus `app/src/play/AndroidManifest.xml`).
 
 Both variants use package ID `com.tinyhack.ssh`. Use the same signing key for direct-download upgrades if users should be able to move between your builds without reinstalling. Official F-Droid builds may use a different F-Droid-controlled signing key.
 

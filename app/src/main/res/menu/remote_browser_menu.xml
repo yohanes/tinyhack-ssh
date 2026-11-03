@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/rb_upload_here"
+        android:icon="@drawable/ic_upload"
+        android:title="Upload files here…"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/rb_new_folder"
+        android:title="New folder"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_shell"
+        android:title="Open SSH terminal here"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_sftp"
+        android:title="Open SFTP session here"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_sort"
+        android:title="Sort by…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_show_hidden"
+        android:checkable="true"
+        android:title="Show hidden files"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_go_to"
+        android:title="Go to path…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_copy_path"
+        android:title="Copy folder path"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_refresh"
+        android:title="Refresh"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rb_disconnect"
+        android:title="Disconnect"
+        app:showAsAction="never" />
+</menu>

@@ -271,6 +271,19 @@
                     style="@style/Widget.Material3.Button.OutlinedButton" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_files_drawer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginTop="8dp"
+                    android:text="Files"
+                    android:textColor="#4D90FE"
+                    app:icon="@drawable/ic_folder"
+                    app:iconTint="#4D90FE"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_ssh_keys_drawer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

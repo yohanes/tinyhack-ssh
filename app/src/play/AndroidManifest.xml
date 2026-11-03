@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Google Play variant: intentionally does not request broad storage. -->
+    <!-- Google Play variant. All files access is the core permission of the
+         built-in file manager (browse, copy, move, rename and delete files on
+         shared storage, and upload/download the user's chosen files with
+         scp/rsync/sftp). Nothing is accessed until the user taps Allow in Files
+         (or enables Storage Access in Settings), reads the in-app explanation
+         and turns on "Allow access to manage all files" in Android Settings. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 </manifest>

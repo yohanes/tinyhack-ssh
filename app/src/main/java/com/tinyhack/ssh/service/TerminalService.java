@@ -22,6 +22,7 @@ import com.tinyhack.ssh.model.ConnectionProfile;
 import com.tinyhack.ssh.session.TerminalSession;
 import com.tinyhack.ssh.ssh.SshAgentManager;
 import com.tinyhack.ssh.ssh.SshKeyManager;
+import com.tinyhack.ssh.ssh.SshTarget;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -441,38 +442,10 @@ public class TerminalService extends Service {
                         "sh", msg}, null, profileId, sessionName);
             }
             // Build SSH command
-            File sshBin = new File(getApplicationInfo().nativeLibraryDir, "libssh.so");
-            if (!sshBin.exists()) {
-                sshBin = new File(getFilesDir(), "usr/bin/ssh");
-            }
-            String sshPath = sshBin.exists() ? sshBin.getAbsolutePath() : "ssh";
-
-            String identityPath = null;
-            if (profile.getAuthType() == ConnectionProfile.AuthType.KEY
-                    && profile.getKeyName() != null && !profile.getKeyName().isEmpty()) {
-                File keyFile = new File(homeDir + "/.ssh/" + profile.getKeyName());
-                if (SshKeyManager.readAndroidSecurityKey(keyFile) != null) {
-                    // Security key: the private key lives in the agent (Android
-                    // Keystore), never in a file. Point ssh at the public key so it
-                    // selects the agent-held identity, and make sure it is loaded.
-                    identityPath = keyFile.getAbsolutePath() + ".pub";
-                    try {
-                        SshAgentManager agent = SshAgentManager.getInstance(this);
-                        if (agent.ensureAgentRunning()) {
-                            agent.addKey(keyFile.getAbsolutePath(), null);
-                        }
-                    } catch (Exception e) {
-                        SafeLog.w(TAG, "Cannot load security key into agent", e);
-                    }
-                } else if (keyFile.exists()) {
-                    identityPath = keyFile.getAbsolutePath();
-                } else {
-                    File alt = new File(profile.getKeyName());
-                    if (alt.exists()) identityPath = alt.getAbsolutePath();
-                }
-            }
+            String sshPath = resolveSshPath();
 
             if (isMosh) {
+                String identityPath = resolveIdentityPath(profile, homeDir);
                 // mosh <launcher> [--ssh=ssh -i KEY -o ForwardAgent=no] [--ssh-port=N] [extra mosh args] user@host
                 File moshBin = new File(getApplicationInfo().nativeLibraryDir, "libmosh.so");
                 if (!moshBin.exists()) {
@@ -515,110 +488,25 @@ public class TerminalService extends Service {
                         profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled(), profile.isTerminalNotificationsEnabled());
             }
 
-            cmd = sshPath;
-
-            java.util.ArrayList<String> args = new java.util.ArrayList<>();
-            String cloudflaredTokenIdForEnv = null;
-            String cloudflaredTokenSecretForEnv = null;
-            args.add("ssh");
-            // Add identity file if key specified
-            if (identityPath != null) {
-                args.add("-i");
-                args.add(identityPath);
+            SshTarget target = buildSshTarget(profile, false);
+            if (target.error != null) {
+                return createErrorSession("Cannot connect: " + target.error, profileId, sessionName);
             }
-            if (profile.getPort() != 22 && profile.getPort() > 0) {
-                args.add("-p");
-                args.add(String.valueOf(profile.getPort()));
-            }
-            String sshArgsStr = profile.getSshArgs();
-            // Always set an explicit safe value; OpenSSH uses the first value
-            // obtained, so extra args cannot silently reverse this profile option.
-            args.add("-o");
-            args.add("ForwardAgent=" + (profile.isAgentForwardingEnabled() ? "yes" : "no"));
-            // Cloudflare Access tunnel (cloudflared ProxyCommand)
-            if (profile.isCloudflaredEnabled()) {
-                String cfHost = profile.getCloudflaredHostname();
-                if (cfHost == null || cfHost.trim().isEmpty()) {
-                    cfHost = profile.getHost() != null ? profile.getHost().trim() : "";
-                } else {
-                    cfHost = cfHost.trim();
-                }
-                if (!cfHost.isEmpty()) {
-                    String cfHostError = ConnectionProfile.hostValidationError(cfHost, "Cloudflared hostname");
-                    String destinationError = ConnectionProfile.destinationValidationError(profile.getCloudflaredDestination());
-                    if (cfHostError != null || destinationError != null) {
-                        String message = cfHostError != null ? cfHostError : destinationError;
-                        File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
-                        String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
-                        return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
-                                "printf 'Cannot connect: %s\\n\\n' \"$1\"; exec sh", "sh", message},
-                                null, profileId, sessionName);
-                    }
-                    boolean hasProxy = sshArgsStr != null && sshArgsStr.contains("ProxyCommand");
-                    if (!hasProxy) {
-                        String cfPath;
-                        File cfNative = new File(getApplicationInfo().nativeLibraryDir, "libcloudflared.so");
-                        if (cfNative.exists()) {
-                            cfPath = cfNative.getAbsolutePath();
-                        } else {
-                            cfPath = new File(getFilesDir(), "usr/bin/cloudflared").getAbsolutePath();
-                        }
-                        String tokenId = profile.getCloudflaredServiceTokenId();
-                        String tokenSecret = profile.getCloudflaredServiceTokenSecret();
-                        boolean hasTokenId = tokenId != null && !tokenId.trim().isEmpty();
-                        boolean hasTokenSecret = tokenSecret != null && !tokenSecret.isEmpty();
-                        if (hasTokenId != hasTokenSecret) {
-                            File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
-                            String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
-                            return createSessionInternal(shBin, homeDir, new String[]{"sh", "-c",
-                                    "printf '%s\\n\\n' 'Cannot connect: Cloudflare service token ID and secret must both be set.'; exec sh"},
-                                    null, profileId, sessionName);
-                        }
-                        if (hasTokenId) {
-                            // cloudflared inherits these from ssh. Supplying the
-                            // values in envp keeps them out of both ssh's and
-                            // cloudflared's process arguments.
-                            cloudflaredTokenIdForEnv = tokenId.trim();
-                            cloudflaredTokenSecretForEnv = tokenSecret;
-                        }
-                        StringBuilder proxy = new StringBuilder();
-                        proxy.append(shellQuoteForProxy(cfPath)).append(" access ssh --hostname ")
-                                .append(shellQuoteForProxy(cfHost));
-                        String dest = profile.getCloudflaredDestination();
-                        if (dest != null && !dest.trim().isEmpty()) {
-                            proxy.append(" --destination ").append(shellQuoteForProxy(dest.trim()));
-                        }
-                        args.add("-o");
-                        args.add("ProxyCommand=" + proxy.toString());
-                    }
-                }
-            }
-            // Extra args split
-            if (sshArgsStr != null && !sshArgsStr.trim().isEmpty()) {
-                String[] extra = sshArgsStr.trim().split("\\s+");
-                for (String e : extra) if (!e.isEmpty()) args.add(e);
-            }
-            // User@Host mandatory
-            String host = profile.getHost() != null ? profile.getHost().trim() : "";
-            String user = profile.getUsername() != null ? profile.getUsername().trim() : "";
-            if (host.isEmpty()) {
+            if (target.destination == null) {
                 // Fallback to local shell if host empty
                 return createSessionInternal(null, null, null, null, profileId, sessionName);
             }
-            String target = user.isEmpty() ? host : user + "@" + host;
-            args.add(target);
-
+            cmd = sshPath;
+            java.util.ArrayList<String> args = new java.util.ArrayList<>();
+            args.add("ssh");
+            args.addAll(target.options);
+            args.add(target.destination);
             argv = args.toArray(new String[0]);
             workDir = homeDir;
             // TERM and the base environment are added by native code. These
             // credentials are inherited by ProxyCommand's cloudflared process;
             // OpenSSH does not forward arbitrary variables to the remote host.
-            if (cloudflaredTokenIdForEnv != null) {
-                envp = new String[]{
-                        "TUNNEL_SERVICE_TOKEN_ID=" + cloudflaredTokenIdForEnv,
-                        "TUNNEL_SERVICE_TOKEN_SECRET=" + cloudflaredTokenSecretForEnv
-                };
-            }
+            envp = target.envp;
         } else {
             // LOCAL
             String shell = profile.getShell();
@@ -682,6 +570,250 @@ public class TerminalService extends Service {
 
         return createSessionInternal(cmd, workDir, argv, envp, profileId, sessionName,
                 profile.isKittyGraphicsEnabled(), profile.isOsc52ClipboardEnabled(), profile.isTerminalNotificationsEnabled());
+    }
+
+    /**
+     * @param forTransfer true for scp/sftp/rsync: the port is passed as
+     *        {@code -o Port=} (scp/sftp use -P), agent forwarding is always
+     *        off, and only transfer-safe extra ssh args are kept.
+     */
+    public SshTarget buildSshTarget(ConnectionProfile profile, boolean forTransfer) {
+        SshTarget t = new SshTarget();
+        t.sshPath = resolveSshPath();
+        String homeDir = getFilesDir().getAbsolutePath() + "/home";
+        boolean isMosh = profile.getType() == ConnectionProfile.Type.MOSH;
+        String host = profile.getHost() != null ? profile.getHost().trim() : "";
+        if (!host.isEmpty() && !ConnectionProfile.isValidHost(host)) {
+            t.error = "profile '" + profile.getName() + "' has an invalid host '" + host + "'";
+            return t;
+        }
+        String identityPath = resolveIdentityPath(profile, homeDir);
+        if (identityPath != null) {
+            t.options.add("-i");
+            t.options.add(identityPath);
+        }
+        if (profile.getPort() != 22 && profile.getPort() > 0) {
+            if (forTransfer) {
+                t.options.add("-o");
+                t.options.add("Port=" + profile.getPort());
+            } else {
+                t.options.add("-p");
+                t.options.add(String.valueOf(profile.getPort()));
+            }
+        }
+        // For MOSH profiles sshArgs carries mosh arguments, not ssh ones.
+        String sshArgsStr = isMosh ? null : profile.getSshArgs();
+        // Always set an explicit safe value; OpenSSH uses the first value
+        // obtained, so extra args cannot silently reverse this profile option.
+        t.options.add("-o");
+        t.options.add("ForwardAgent=" + (!forTransfer && profile.isAgentForwardingEnabled() ? "yes" : "no"));
+        // Cloudflare Access tunnel (cloudflared ProxyCommand)
+        if (profile.isCloudflaredEnabled()) {
+            String cfHost = profile.getCloudflaredHostname();
+            if (cfHost == null || cfHost.trim().isEmpty()) {
+                cfHost = host;
+            } else {
+                cfHost = cfHost.trim();
+            }
+            if (!cfHost.isEmpty()) {
+                String cfHostError = ConnectionProfile.hostValidationError(cfHost, "Cloudflared hostname");
+                String destinationError = ConnectionProfile.destinationValidationError(profile.getCloudflaredDestination());
+                if (cfHostError != null || destinationError != null) {
+                    t.error = cfHostError != null ? cfHostError : destinationError;
+                    return t;
+                }
+                boolean hasProxy = sshArgsStr != null && sshArgsStr.contains("ProxyCommand");
+                if (!hasProxy) {
+                    String cfPath;
+                    File cfNative = new File(getApplicationInfo().nativeLibraryDir, "libcloudflared.so");
+                    if (cfNative.exists()) {
+                        cfPath = cfNative.getAbsolutePath();
+                    } else {
+                        cfPath = new File(getFilesDir(), "usr/bin/cloudflared").getAbsolutePath();
+                    }
+                    String tokenId = profile.getCloudflaredServiceTokenId();
+                    String tokenSecret = profile.getCloudflaredServiceTokenSecret();
+                    boolean hasTokenId = tokenId != null && !tokenId.trim().isEmpty();
+                    boolean hasTokenSecret = tokenSecret != null && !tokenSecret.isEmpty();
+                    if (hasTokenId != hasTokenSecret) {
+                        t.error = "Cloudflare service token ID and secret must both be set.";
+                        return t;
+                    }
+                    if (hasTokenId) {
+                        // cloudflared inherits these from ssh. Supplying the
+                        // values in envp keeps them out of both ssh's and
+                        // cloudflared's process arguments.
+                        t.envp = new String[]{
+                                "TUNNEL_SERVICE_TOKEN_ID=" + tokenId.trim(),
+                                "TUNNEL_SERVICE_TOKEN_SECRET=" + tokenSecret
+                        };
+                    }
+                    StringBuilder proxy = new StringBuilder();
+                    proxy.append(shellQuoteForProxy(cfPath)).append(" access ssh --hostname ")
+                            .append(shellQuoteForProxy(cfHost));
+                    String dest = profile.getCloudflaredDestination();
+                    if (dest != null && !dest.trim().isEmpty()) {
+                        proxy.append(" --destination ").append(shellQuoteForProxy(dest.trim()));
+                    }
+                    t.options.add("-o");
+                    t.options.add("ProxyCommand=" + proxy);
+                }
+            }
+        }
+        // Extra args split
+        if (sshArgsStr != null && !sshArgsStr.trim().isEmpty()) {
+            String[] extra = sshArgsStr.trim().split("\\s+");
+            if (forTransfer) {
+                t.options.addAll(SshTarget.filterTransferSshArgs(extra));
+            } else {
+                for (String e : extra) if (!e.isEmpty()) t.options.add(e);
+            }
+        }
+        String user = profile.getUsername() != null ? profile.getUsername().trim() : "";
+        if (!host.isEmpty()) t.destination = user.isEmpty() ? host : user + "@" + host;
+        return t;
+    }
+
+    private String resolveSshPath() {
+        File sshBin = new File(getApplicationInfo().nativeLibraryDir, "libssh.so");
+        if (!sshBin.exists()) {
+            sshBin = new File(getFilesDir(), "usr/bin/ssh");
+        }
+        return sshBin.exists() ? sshBin.getAbsolutePath() : "ssh";
+    }
+
+    private String resolveIdentityPath(ConnectionProfile profile, String homeDir) {
+        if (profile.getAuthType() != ConnectionProfile.AuthType.KEY
+                || profile.getKeyName() == null || profile.getKeyName().isEmpty()) {
+            return null;
+        }
+        File keyFile = new File(homeDir + "/.ssh/" + profile.getKeyName());
+        if (SshKeyManager.readAndroidSecurityKey(keyFile) != null) {
+            // Security key: the private key lives in the agent (Android
+            // Keystore), never in a file. Point ssh at the public key so it
+            // selects the agent-held identity, and make sure it is loaded.
+            try {
+                SshAgentManager agent = SshAgentManager.getInstance(this);
+                if (agent.ensureAgentRunning()) {
+                    agent.addKey(keyFile.getAbsolutePath(), null);
+                }
+            } catch (Exception e) {
+                SafeLog.w(TAG, "Cannot load security key into agent", e);
+            }
+            return keyFile.getAbsolutePath() + ".pub";
+        }
+        if (keyFile.exists()) return keyFile.getAbsolutePath();
+        File alt = new File(profile.getKeyName());
+        return alt.exists() ? alt.getAbsolutePath() : null;
+    }
+
+    private TerminalSession createErrorSession(String message, String profileId, String sessionName) {
+        File busybox = new File(getApplicationInfo().nativeLibraryDir, "libbusybox.so");
+        String shBin = busybox.exists() ? busybox.getAbsolutePath() : "sh";
+        String home = getFilesDir().getAbsolutePath() + "/home";
+        return createSessionInternal(shBin, home, new String[]{"sh", "-c",
+                "printf '%s\\n\\n' \"$1\"; exec sh", "sh", message}, null, profileId, sessionName);
+    }
+
+    /**
+     * Run a one-shot command (scp, rsync, ...) in a new terminal session so
+     * password, passphrase and host-key prompts stay interactive. When
+     * {@code holdOnExit} is set the session prints the exit status and waits
+     * for Enter, so the result stays readable.
+     */
+    public synchronized TerminalSession createCommandSession(String sessionName, String cwd,
+            List<String> command, String[] envp, boolean holdOnExit) {
+        return createCommandSession(sessionName, cwd, command, envp,
+                holdOnExit ? HoldMode.ALWAYS : HoldMode.NONE);
+    }
+
+    /** What a command session does when its command exits. */
+    public enum HoldMode {
+        /** Close immediately. */
+        NONE,
+        /** Show the result and wait for Enter. */
+        ALWAYS,
+        /** Close on success; show the error and wait for Enter on failure. */
+        ON_FAILURE
+    }
+
+    public synchronized TerminalSession createCommandSession(String sessionName, String cwd,
+            List<String> command, String[] envp, HoldMode hold) {
+        File bashBin = new File(getApplicationInfo().nativeLibraryDir, "libbash.so");
+        String header = "printf '\\033[1m%s\\033[0m\\n\\n' \"$1\"; shift; ";
+        String script;
+        if (hold == HoldMode.ALWAYS) {
+            script = header + "\"$@\"; rc=$?; echo; "
+                  + "if [ $rc -eq 0 ]; then printf '\\033[32mDone.\\033[0m\\n'; "
+                  + "else printf '\\033[31mFailed (exit %d).\\033[0m\\n' \"$rc\"; fi; "
+                  + "printf 'Press Enter to continue.'; read -r _; exit $rc";
+        } else if (hold == HoldMode.ON_FAILURE) {
+            script = header + "\"$@\"; rc=$?; "
+                  + "if [ $rc -ne 0 ]; then echo; printf '\\033[31mFailed (exit %d).\\033[0m\\n' \"$rc\"; "
+                  + "printf 'Press Enter to continue.'; read -r _; fi; exit $rc";
+        } else {
+            script = header + "exec \"$@\"";
+        }
+        List<String> argv = new ArrayList<>();
+        argv.add("bash");
+        argv.add("-c");
+        argv.add(script);
+        argv.add("bash");
+        argv.add(sessionName);
+        argv.addAll(command);
+        return createSessionInternal(bashBin.getAbsolutePath(), cwd, argv.toArray(new String[0]),
+                envp, null, sessionName);
+    }
+
+    /**
+     * Environment for ssh/scp processes started outside a terminal (the
+     * remote file browser): the same HOME, PATH and agent socket a terminal
+     * session gets, plus the target's extra variables.
+     */
+    public java.util.Map<String, String> sshProcessEnvironment(String[] extra) {
+        String files = getFilesDir().getAbsolutePath();
+        String prefix = files + "/usr";
+        java.util.Map<String, String> env = new java.util.HashMap<>();
+        env.put("HOME", files + "/home");
+        env.put("PREFIX", prefix);
+        env.put("PATH", prefix + "/bin:/system/bin:/system/xbin");
+        File tmp = new File(prefix, "tmp");
+        //noinspection ResultOfMethodCallIgnored
+        tmp.mkdirs();
+        env.put("TMPDIR", tmp.getAbsolutePath());
+        env.put("LANG", "en_US.UTF-8");
+        env.put("TERM", "dumb");
+        String sysRoot = System.getenv("ANDROID_ROOT");
+        if (sysRoot != null) env.put("ANDROID_ROOT", sysRoot);
+        String[] withAgent = injectAgentEnv(extra);
+        if (withAgent != null) {
+            for (String kv : withAgent) {
+                int eq = kv.indexOf('=');
+                if (eq > 0) env.put(kv.substring(0, eq), kv.substring(eq + 1));
+            }
+        }
+        return env;
+    }
+
+    /** Private folder for OpenSSH control sockets (kept short: socket path limit). */
+    public File sshControlDir() {
+        File dir = new File(getFilesDir(), "cm");
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        try {
+            android.system.Os.chmod(dir.getAbsolutePath(), 0700);
+        } catch (Exception ignored) {}
+        return dir;
+    }
+
+    /** Log out of every file-browser connection (shared ssh masters). */
+    public void closeRemoteConnections() {
+        try {
+            com.tinyhack.ssh.files.RemoteConnection.exitAll(sshControlDir(), resolveSshPath(),
+                    sshProcessEnvironment(null));
+        } catch (Exception e) {
+            SafeLog.w(TAG, "Cannot close remote connections", e);
+        }
     }
 
     private static String shellQuote(String value) {
@@ -835,6 +967,8 @@ public class TerminalService extends Service {
             for (TerminalSession s : toClose) {
                 try { s.close(); } catch (Exception ignored) {}
             }
+            // Background ssh masters of the remote file browser.
+            closeRemoteConnections();
             // Terminate the whole app once sessions are cleaned up
             android.os.Process.killProcess(android.os.Process.myPid());
         }, "TerminalExit").start();

@@ -6,6 +6,12 @@
         <item name="colorPrimary">@color/primary</item>
     </style>
 
+    <!-- File manager: the selection (action mode) bar replaces the toolbar. -->
+    <style name="Theme.TinyhackSSH.FileManager">
+        <item name="windowActionModeOverlay">true</item>
+        <item name="actionModeBackground">@color/surface</item>
+    </style>
+
     <style name="Theme.TinyhackSSH.Translucent">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>

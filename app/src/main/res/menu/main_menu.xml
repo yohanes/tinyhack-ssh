@@ -28,6 +28,10 @@
         android:title="@string/font_size_down"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_files"
+        android:title="Files"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_ssh_keys"
         android:title="SSH Keys"
         app:showAsAction="never" />

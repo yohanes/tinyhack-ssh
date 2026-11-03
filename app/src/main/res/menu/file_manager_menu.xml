@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/fm_browse_server"
+        android:icon="@drawable/ic_server"
+        android:title="Browse server…"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/fm_download"
+        android:icon="@drawable/ic_download"
+        android:title="Download from server by path…"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_new_folder"
+        android:title="New folder"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_sftp"
+        android:title="Open SFTP here…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_terminal"
+        android:title="Open terminal here"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_sort"
+        android:title="Sort by…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_show_hidden"
+        android:checkable="true"
+        android:title="Show hidden files"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_go_to"
+        android:title="Go to path…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_copy_path"
+        android:title="Copy folder path"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/fm_refresh"
+        android:title="Refresh"
+        app:showAsAction="never" />
+</menu>

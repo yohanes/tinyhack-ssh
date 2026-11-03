@@ -1,5 +1,36 @@
 # Release notes
 
+## 1.2.0 (version code 10) — File manager and remote browser, 2026-11-03
+
+- Add a Files screen (drawer, overflow menu, and quick menu) for browsing the
+  app home and, when All files access is granted, phone storage, SD cards, and
+  Downloads. Copy, move, rename, delete, share, open with another app, edit in
+  `vi`, create folders, sort, show hidden files, and jump to any path.
+- Upload selected files/folders to a saved SSH profile with `scp` or `rsync`,
+  download a remote file or folder into the current folder, or open an
+  interactive `sftp` session whose local side starts in that folder. Transfers
+  run in a terminal session (so password, passphrase, and host-key prompts work)
+  and return to Files when finished. They reuse the profile's port, key,
+  Cloudflare Access, and transfer-safe extra ssh options; agent forwarding is
+  always off for transfers.
+- Add a remote file browser (**Browse server** in Files). It logs in once
+  (silently when the key needs no prompt, otherwise in a terminal session) and
+  keeps an OpenSSH control master for 15 idle minutes. Listing, opening,
+  renaming, deleting and creating folders use a built-in SFTP client over that
+  connection; downloads, uploads, `sftp` and **Open SSH terminal here** reuse
+  it without logging in again. The upload dialog's **Browse…** picks the remote
+  destination folder. **Disconnect** and the notification Exit action log out.
+- Patch the bundled OpenSSH so control masters work on Android: SELinux forbids
+  the hard link `ssh -M` uses to publish its socket, so fall back to `rename()`
+  after checking that no socket already exists
+  (`patches/openssh-mux-no-hardlink.patch`).
+- The Google Play build now also declares `MANAGE_EXTERNAL_STORAGE` for the file
+  manager. Access stays off until the user taps **Allow** in Files (or enables
+  Storage Access in Settings), reads the in-app explanation, and grants All
+  files access in Android Settings.
+- The explicit `-S`/`-e` ssh path keeps scp, sftp, and rsync working under
+  development package IDs, whose data directory differs from the built-in path.
+
 ## 1.1.3 (version code 9) — UML console-close cleanup, 2026-11-02
 
 - Clean up UML and its network helper when its terminal closes, so the

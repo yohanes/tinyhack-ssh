@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/sel_upload"
+        android:icon="@drawable/ic_upload"
+        android:title="Upload to server…"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/sel_copy"
+        android:icon="@drawable/ic_copy"
+        android:title="Copy"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/sel_cut"
+        android:icon="@drawable/ic_cut"
+        android:title="Move"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/sel_delete"
+        android:icon="@drawable/ic_delete"
+        android:title="Delete"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/sel_share"
+        android:icon="@drawable/ic_share"
+        android:title="Share"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_rename"
+        android:title="Rename"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_open_with"
+        android:title="Open with…"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_edit_terminal"
+        android:title="Edit in terminal (vi)"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_details"
+        android:title="Details"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_copy_path"
+        android:title="Copy path"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sel_select_all"
+        android:title="Select all"
+        app:showAsAction="never" />
+</menu>

@@ -274,12 +274,27 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "Storage access disabled", Toast.LENGTH_SHORT).show();
             return;
         }
-        terminalService.setStorageAccessEnabled(true);
         if (!terminalService.hasManageStoragePermission()) {
-            Toast.makeText(this, "Grant 'All files access' to enable storage access", Toast.LENGTH_LONG).show();
-            launchStoragePermission();
+            // Explain in-app before Android's All files access screen.
+            new AlertDialog.Builder(this)
+                .setTitle("Allow access to your files")
+                .setMessage("Storage Access links your phone storage at ~/storage, so terminal "
+                    + "tools (cp, rsync, scp, sftp, editors) and the Files screen can read and "
+                    + "write the files you work with.\n\n"
+                    + "Files are read or sent only by commands and actions you start. Nothing "
+                    + "is uploaded automatically.\n\n"
+                    + "On the next screen, turn on \"Allow access to manage all files\".")
+                .setCancelable(false)
+                .setPositiveButton("Continue", (d, w) -> {
+                    terminalService.setStorageAccessEnabled(true);
+                    launchStoragePermission();
+                })
+                .setNegativeButton("Not now", (d, w) ->
+                    revertSwitch(switchStorageAccess, storageAccessListener, false))
+                .show();
             return;
         }
+        terminalService.setStorageAccessEnabled(true);
         applyStorageSetup();
     }
 

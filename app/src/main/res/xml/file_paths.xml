@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files opened or shared from the file manager. A URI is only handed out
+     for a file the user explicitly opens or shares, with a per-intent read
+     grant; the provider itself is not exported. -->
+<paths>
+    <files-path name="home" path="home/" />
+    <external-path name="storage" path="." />
+    <root-path name="volumes" path="storage/" />
+    <!-- Temporary copies of server files opened from the remote browser. -->
+    <cache-path name="remote" path="remote-open/" />
+</paths>

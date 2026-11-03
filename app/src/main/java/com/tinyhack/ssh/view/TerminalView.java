@@ -1231,7 +1231,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
             int padH = dpToPx(12);
             root.setPadding(padH, dpToPx(4), padH, dpToPx(4));
 
-            // --- Icon rows (two rows of four) ---
+            // --- Icon rows (two rows on a five-column grid) ---
             LinearLayout iconRow1 = new LinearLayout(ctx);
             iconRow1.setOrientation(LinearLayout.HORIZONTAL);
             iconRow1.setGravity(android.view.Gravity.CENTER);
@@ -1256,6 +1256,11 @@ public class TerminalView extends View implements TerminalSession.Listener {
                     "New from profile", "New", v -> {
                         dismiss.run();
                         showProfilePicker();
+                    }));
+            iconRow1.addView(makeMenuIconButton(ctx, com.tinyhack.ssh.R.drawable.ic_folder,
+                    "Files", "Files", v -> {
+                        dismiss.run();
+                        startActivityFromMenu(ctx, com.tinyhack.ssh.files.FileManagerActivity.class, "Cannot open Files");
                     }));
             root.addView(iconRow1);
 
@@ -1283,6 +1288,11 @@ public class TerminalView extends View implements TerminalSession.Listener {
                         dismiss.run();
                         startActivityFromMenu(ctx, com.tinyhack.ssh.ui.SettingsActivity.class, "Cannot open Settings");
                     }));
+            // Empty fifth cell keeps both rows on the same 5-column grid.
+            android.widget.Space spacer = new android.widget.Space(ctx);
+            LinearLayout.LayoutParams spacerLp = new LinearLayout.LayoutParams(0, 1, 1f);
+            spacerLp.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+            iconRow2.addView(spacer, spacerLp);
             root.addView(iconRow2);
 
             // --- Sessions: tap to switch ---
@@ -1372,7 +1382,7 @@ public class TerminalView extends View implements TerminalSession.Listener {
         btn.addView(text);
 
         btn.setOnClickListener(listener);
-        // Equal-width cells (weight=1, width=0): the 4x2 grid stays aligned at
+        // Equal-width cells (weight=1, width=0): the 5x2 grid stays aligned at
         // any screen width and font scale, and captions center under icons.
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);

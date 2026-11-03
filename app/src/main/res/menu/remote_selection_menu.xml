@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/rsel_download"
+        android:icon="@drawable/ic_download"
+        android:title="Download"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/rsel_delete"
+        android:icon="@drawable/ic_delete"
+        android:title="Delete"
+        app:iconTint="#FFFFFF"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/rsel_open"
+        android:title="Open"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rsel_rename"
+        android:title="Rename"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rsel_details"
+        android:title="Details"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rsel_copy_path"
+        android:title="Copy path"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/rsel_select_all"
+        android:title="Select all"
+        app:showAsAction="never" />
+</menu>

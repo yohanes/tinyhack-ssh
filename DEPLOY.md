@@ -2,9 +2,14 @@
 
 This runbook describes the two release distributions:
 
-- `playRelease` produces the Google Play AAB without `MANAGE_EXTERNAL_STORAGE`.
-- `fdroidRelease` produces the F-Droid/direct-download APK with optional,
-  user-granted All files access and the `~/storage` feature.
+- `playRelease` produces the Google Play AAB.
+- `fdroidRelease` produces the F-Droid/direct-download APK.
+
+Both declare `MANAGE_EXTERNAL_STORAGE` for the built-in file manager and the
+optional `~/storage` link. Access stays off until the user reads the in-app
+explanation and grants All files access in Android Settings. The flavors keep
+the `STORAGE_ACCESS_AVAILABLE` gate so the Play build can drop the permission
+again (see section 10).
 
 Both use package ID `com.tinyhack.ssh`; the manifest and runtime feature gate
 are selected by the Gradle distribution flavor.
@@ -46,8 +51,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 9
-versionName "1.1.3"
+versionCode 10
+versionName "1.2.0"
 ```
 
 Rules:
@@ -160,14 +165,26 @@ Manually test at minimum:
 5. Use the notification Exit action and confirm sessions close.
 6. On a clean permission state, confirm Tinyhack SSH shows its explanatory dialog
    before Android's notification permission dialog.
-7. In `fdroidDebug`, enable Storage Access, grant All files access in Android
-   Settings, confirm `~/storage` works, then disable it again.
-8. Confirm `playRelease` does not show Storage Access and its merged manifest
-   has no broad-storage permission. Confirm `fdroidRelease` does show Storage
-   Access and declares the permission.
-9. Open SSH Keys and confirm it is reachable only from inside Tinyhack SSH.
-10. Check About, privacy-policy, project, and third-party-license links.
-11. Paste short text containing CR, LF, ESC, or DEL: confirm a warning appears,
+7. Enable Storage Access in Settings: confirm the explanation dialog appears
+   before Android's All files access screen, grant access, confirm `~/storage`
+   works, then disable it again.
+8. Confirm both `playRelease` and `fdroidRelease` merged manifests declare
+   `MANAGE_EXTERNAL_STORAGE` exactly once and both show Storage Access.
+9. Open Files on a clean permission state. Tap **Allow**, confirm the
+   explanation dialog precedes Android's All files access screen, then browse
+   phone storage. In a non-sensitive test folder, copy, move, rename, and
+   delete files; upload a file and a folder with scp and rsync to a test
+   server, download one back, and open an SFTP session. Confirm each transfer
+   returns to Files after Enter.
+10. Tap **Browse server** for a profile whose key has a passphrase or whose host
+    key is unknown: the login opens in a terminal and the browser reopens when
+    it succeeds. Open a folder, open a file, rename, delete, create a folder,
+    download several items (scp and rsync), and pick an upload destination with
+    **Browse…** in the upload dialog. None of these may prompt again. Cancel a
+    login (Ctrl-C) and confirm the browser offers **Connect** instead of looping.
+11. Open SSH Keys and confirm it is reachable only from inside Tinyhack SSH.
+12. Check About, privacy-policy, project, and third-party-license links.
+13. Paste short text containing CR, LF, ESC, or DEL: confirm a warning appears,
     Cancel writes nothing, and Paste targets only the original session. Test
     ordinary Unicode text and bracketed paste in Bash.
 
@@ -175,6 +192,8 @@ Host-side security regression checks:
 
 ```bash
 bash scripts/test-paste-safety.sh
+bash scripts/test-remote-transfer.sh
+bash scripts/test-remote-browser.sh   # throwaway local sshd; needs openssh-server
 bash scripts/audit-cloudflared.sh
 cd ghostty
 zig build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl
@@ -267,7 +286,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-(cd release && sha256sum -c tinyhack-ssh-1.1.3-source.tar.xz.sha256)
+(cd release && sha256sum -c tinyhack-ssh-1.2.0-source.tar.xz.sha256)
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -275,8 +294,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.1.3-source.tar.xz
-release/tinyhack-ssh-1.1.3-source.tar.xz.sha256
+release/tinyhack-ssh-1.2.0-source.tar.xz
+release/tinyhack-ssh-1.2.0-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish
@@ -298,7 +317,8 @@ Check that the privacy policy accurately states:
   user chooses.
 - Profiles, keys, preferences, terminal home files, and debug tokens are stored
   locally.
-- Storage Access is optional and user-enabled.
+- All files access is optional, requested only after an in-app explanation,
+  and used only for files the user browses, copies or chooses to transfer.
 - Contact: `tinyhack-ssh@tinyhack.com`.
 
 ## 9. Prepare the Play store listing
@@ -324,21 +344,52 @@ language:
 > via the bundled cloudflared client), with secure per-connection controls for
 > SSH agent forwarding, terminal clipboard writes, and Kitty graphics.
 
-Do not claim that Tinyhack SSH is an official Ghostty product. Do not describe it as
-a general-purpose file manager unless the UI and listing genuinely make that a
-core purpose.
+Add a sentence about the file manager, which is the core purpose behind the All
+files access declaration, for example:
+
+> A built-in file manager browses phone storage and your servers side by side:
+> copy, move, rename and delete files, and upload or download them with SCP,
+> SFTP or rsync over your saved SSH connections.
+
+Add phone screenshots of Files (phone storage) and Browse server next to the
+existing ones. Do not claim that Tinyhack SSH is an official Ghostty product.
 
 ## 10. Play Console declarations
 
 Complete every applicable item under **Policy and programs > App content**.
 Exact names can change in Play Console.
 
-### Storage permission
+### Storage permission (All files access)
 
-The uploaded `playRelease` AAB must not declare `MANAGE_EXTERNAL_STORAGE`. Verify the release
-merged manifest before upload. Do not submit an All files access declaration or
-describe broad shared-storage access in the Play listing. That capability exists
-only in the separately distributed `fdroid` flavor.
+The `playRelease` AAB declares `MANAGE_EXTERNAL_STORAGE`, so Play Console
+requires the **All files access** permission declaration before the release can
+be reviewed (Policy and programs > App content). Choose the file-manager use
+case. Suggested core-purpose text:
+
+> Tinyhack SSH includes a file manager. Users browse, copy, move, rename and
+> delete files on shared storage, and transfer the files they choose to or from
+> their own servers with SCP, SFTP or rsync (Files > Browse server, Upload to
+> server). These operations need to see every folder on shared storage,
+> including folders created by other apps, which the Storage Access Framework
+> and media permissions cannot provide for arbitrary folder trees and
+> command-line tools. Access is requested only after an in-app explanation and
+> is never used in the background.
+
+Demonstration video (screen recording of the release build, about one minute):
+
+1. Open the drawer and tap **Files**. Show the **Allow** banner, tap it, show
+   the in-app explanation, tap **Continue**, and turn on the system toggle.
+2. Return to Files, show phone storage, open a folder such as Download, and
+   copy a file into another folder.
+3. Select a file, tap **Upload to server**, use **Browse…** to choose the remote
+   folder, and run the upload; show it completing.
+4. Tap **Browse server**, open the uploaded folder, select a file and download
+   it back into phone storage.
+
+To ship a Play build without the permission instead, set
+`STORAGE_ACCESS_AVAILABLE` to `false` for `play` in `app/build.gradle` and
+remove the permission from `app/src/play/AndroidManifest.xml`; the file manager
+then covers the app home only, and the declaration must not be submitted.
 
 ### Foreground service
 
@@ -382,7 +433,8 @@ Recommended sequence:
 4. Upload `release/tinyhack-ssh-play-release.aab`.
 5. Resolve every manifest, policy, 16 KiB, and pre-launch warning.
 6. Install the Play-delivered build from the test track on a clean device.
-7. Repeat the terminal, notification, SSH/Mosh, and Exit tests.
+7. Repeat the terminal, notification, SSH/Mosh, Files, Browse server, and Exit
+   tests.
 8. Submit the release for review.
 9. Retain the uploaded AAB, checksum, source archive, mapping/native-symbol
    outputs if generated, reviewer video, and Play review correspondence.
@@ -392,10 +444,12 @@ split APKs. Always test the Play-delivered build before production rollout.
 
 ## 12. Distribution isolation
 
-Do not move `MANAGE_EXTERNAL_STORAGE` into `src/main` or `src/play`. It belongs
-only in `app/src/fdroid/AndroidManifest.xml`. Before every release, inspect both
-merged manifests and test the corresponding Settings UI. Keep Play listing text
-and screenshots free of features that exist only in the F-Droid/direct build.
+Keep `MANAGE_EXTERNAL_STORAGE` in the flavor manifests
+(`app/src/play/AndroidManifest.xml` and `app/src/fdroid/AndroidManifest.xml`),
+not in `src/main`, so either distribution can drop it independently. Before
+every release, inspect both merged manifests and test the corresponding Files
+and Settings UI. Keep Play listing text and screenshots free of features that
+exist only in the F-Droid/direct build.
 
 ## Final release checklist
 
@@ -406,9 +460,9 @@ and screenshots free of features that exist only in the F-Droid/direct build.
 - [ ] Both flavor lint/builds succeed
 - [ ] F-Droid debug APK installed and full device smoke test passes
 - [ ] Notification pre-permission disclosure tested
-- [ ] F-Droid Storage Access enable/use/disable flow tested
-- [ ] Play release manifest omits `MANAGE_EXTERNAL_STORAGE`
-- [ ] F-Droid release manifest contains `MANAGE_EXTERNAL_STORAGE`
+- [ ] Storage Access enable/use/disable flow tested
+- [ ] Files Allow flow, local operations and remote browser tested
+- [ ] Play and F-Droid release manifests each contain `MANAGE_EXTERNAL_STORAGE` once
 - [ ] Signed Play AAB and direct-download APK verify successfully
 - [ ] AAB SHA-256 checksum saved
 - [ ] Corresponding-source archive generated and checksum verified
@@ -416,6 +470,7 @@ and screenshots free of features that exist only in the F-Droid/direct build.
 - [ ] Store listing includes independent/unofficial statement
 - [ ] Store images uploaded
 - [ ] Foreground-service declaration completed
+- [ ] All files access declaration and demonstration video submitted
 - [ ] Data Safety and all other App content forms completed
 - [ ] Play internal-test build installed and tested
 - [ ] Release artifacts and review records archived securely

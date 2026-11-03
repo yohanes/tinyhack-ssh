@@ -42,7 +42,7 @@
       <div class="feature"><h3>SSH Agent + Security Keys</h3><p>Embedded ssh-agent with Ed25519/RSA support and FIDO2 <code>-sk</code> keys backed by the Android Keystore and biometrics.</p></div>
       <div class="feature"><h3>Multi-Session &amp; Profiles</h3><p>Run many sessions at once; save LOCAL/SSH connection profiles and connect with one tap.</p></div>
       <div class="feature"><h3>Termux-like UX</h3><p>Extra-keys toolbar, three-finger menus, scrollback and selection; sessions keep running in the background when you close the app.</p></div>
-      <div class="feature"><h3>rsync &amp; Secure Transfers</h3><p>Bundled rsync, scp, and sftp transfer files to destinations you choose. The Play build omits broad storage access; the F-Droid/direct build offers a separate, user-enabled Storage Access option.</p></div>
+      <div class="feature"><h3>File Manager &amp; Secure Transfers</h3><p>Browse phone storage and your servers side by side: copy, move, rename and delete files, and upload or download them with bundled scp, rsync and sftp over your saved SSH connections. Phone storage opens only after you grant All files access.</p></div>
       <div class="feature"><h3>Secure Defaults</h3><p>SSH agent forwarding, Kitty graphics, and OSC 52 clipboard writes are disabled unless you enable them for a profile. Terminal links require confirmation by default.</p></div>
     </div>
   </div>
@@ -71,11 +71,11 @@
 <section id="download">
   <div class="container" style="text-align:center;">
     <h2>Download</h2>
-    <p>New in 1.1.3: closing a UML terminal now cleans up the guest, so the environment can be started again. Use <code>sudo poweroff</code> for a clean shutdown. Configure UML memory in local profiles or with <code>uml-env config NAME --memory 4G</code>. Create named Debian environments with <code>uml-env</code>, sparse disks, sudo, APT, and one-tap launch from local profiles. The experimental UML kernel and Debian template are included; initial environment creation needs internet access.</p>
+    <p>New in 1.2.0: a built-in file manager. Browse phone storage, copy, move, rename and delete files, and upload or download them with scp, rsync or sftp. <strong>Browse server</strong> opens the files on any saved SSH connection after one login. UML environments: create named Debian environments with <code>uml-env</code>, sparse disks, sudo, APT, configurable memory, and one-tap launch from local profiles.</p>
     <p style="color:var(--muted); margin-bottom:20px;">Tinyhack SSH is available on Google Play for arm64-v8a devices running Android 14 or newer.</p>
     <a class="btn" href="https://play.google.com/store/apps/details?id=com.tinyhack.ssh">Download on Google Play</a>
     <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh">Source code on GitHub</a>
-    <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh/releases/tag/v1.1.3">APK and corresponding source</a>
+    <a class="btn secondary" href="https://github.com/yohanes/tinyhack-ssh/releases/tag/v1.2.0">APK and corresponding source</a>
   </div>
 </section>
 

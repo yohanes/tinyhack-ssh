@@ -45,6 +45,7 @@ fi
     cd "$OPENSSH_DIR"
     apply_patch_once "$PROJECT_DIR/patches/openssh-abstract-auth-socket.patch"
     apply_patch_once "$PROJECT_DIR/patches/openssh-android-compat.patch"
+    apply_patch_once "$PROJECT_DIR/patches/openssh-mux-no-hardlink.patch"
     make distclean >/dev/null 2>&1 || true
     ac_cv_func_bzero=yes \
     CC=aarch64-linux-android34-clang AR=llvm-ar RANLIB=llvm-ranlib STRIP=llvm-strip \

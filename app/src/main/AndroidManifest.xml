@@ -54,6 +54,20 @@
             android:theme="@style/Theme.TinyhackSSH" />
 
         <activity
+            android:name=".files.FileManagerActivity"
+            android:exported="false"
+            android:label="Files"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.TinyhackSSH.FileManager" />
+
+        <activity
+            android:name=".files.RemoteBrowserActivity"
+            android:exported="false"
+            android:label="Server files"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.TinyhackSSH.FileManager" />
+
+        <activity
             android:name=".ssh.SshAgentActivity"
             android:exported="false"
             android:label="SSH Agent"
@@ -67,6 +81,18 @@
             android:theme="@style/Theme.TinyhackSSH.Translucent" />
 
         <receiver android:name=".util.KittyNotificationReceiver" android:exported="false" />
+
+        <!-- Hands out per-file read grants when the user opens or shares a
+             file from the file manager. Not exported. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <service
             android:name=".service.TerminalService"

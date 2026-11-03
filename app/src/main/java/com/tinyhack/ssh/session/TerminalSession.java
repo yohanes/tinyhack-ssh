@@ -118,6 +118,26 @@ public class TerminalSession implements SessionCallback {
         processWatcherThread.start();
     }
 
+    private volatile boolean returnToFilesOnExit;
+
+    /** File-manager transfer/editor sessions: dismiss on exit and reopen Files. */
+    public boolean isReturnToFilesOnExit() { return returnToFilesOnExit; }
+    public void setReturnToFilesOnExit(boolean value) { returnToFilesOnExit = value; }
+
+    private volatile android.content.Intent[] returnIntents;
+
+    /**
+     * Activities to restore (bottom first) when a return-to-files session
+     * ends, e.g. Files plus the remote browser it was started from. Null
+     * means the plain file manager.
+     */
+    public void setReturnIntents(android.content.Intent... intents) {
+        returnIntents = intents;
+        returnToFilesOnExit = true;
+    }
+
+    public android.content.Intent[] getReturnIntents() { return returnIntents; }
+
     public void setListener(Listener listener) {
         this.listener = listener;
     }

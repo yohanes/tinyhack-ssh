@@ -11,8 +11,8 @@ android {
         applicationId "com.tinyhack.ssh"
         minSdk 34
         targetSdk 36
-        versionCode 9
-        versionName "1.1.3"
+        versionCode 10
+        versionName "1.2.0"
 
         externalNativeBuild {
             cmake {
@@ -31,7 +31,11 @@ android {
     productFlavors {
         play {
             dimension "distribution"
-            buildConfigField "boolean", "STORAGE_ACCESS_AVAILABLE", "false"
+            // All files access powers the file manager (browse phone storage and
+            // send chosen files to the user's servers). Set to "false" and drop
+            // the permission from src/play/AndroidManifest.xml to ship a Play
+            // build without it.
+            buildConfigField "boolean", "STORAGE_ACCESS_AVAILABLE", "true"
             buildConfigField "String", "DISTRIBUTION", '"play"'
         }
         fdroid {

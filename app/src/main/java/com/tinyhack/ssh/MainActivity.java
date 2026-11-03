@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     private View btnManageProfiles;
     private View btnSshKeysDrawer;
     private View btnSshAgentDrawer;
+    private View btnFilesDrawer;
     private ProfileManager profileManager;
     private String pendingConnectProfileId;
     private boolean terminalUiResumed;
@@ -166,6 +167,7 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         btnManageProfiles = findViewById(R.id.btn_manage_profiles);
         btnSshKeysDrawer = findViewById(R.id.btn_ssh_keys_drawer);
         btnSshAgentDrawer = findViewById(R.id.btn_ssh_agent_drawer);
+        btnFilesDrawer = findViewById(R.id.btn_files_drawer);
 
         profileManager = ProfileManager.getInstance(this);
 
@@ -388,6 +390,12 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         if (btnSshKeysDrawer != null) {
             btnSshKeysDrawer.setOnClickListener(v -> {
                 startActivity(new Intent(this, com.tinyhack.ssh.ssh.SshKeysActivity.class));
+                drawerLayout.closeDrawer(GravityCompat.START);
+            });
+        }
+        if (btnFilesDrawer != null) {
+            btnFilesDrawer.setOnClickListener(v -> {
+                startActivity(new Intent(this, com.tinyhack.ssh.files.FileManagerActivity.class));
                 drawerLayout.closeDrawer(GravityCompat.START);
             });
         }
@@ -1192,6 +1200,9 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
         } else if (id == R.id.action_font_down) {
             terminalView.setFontSize(12.0f);
             return true;
+        } else if (id == R.id.action_files) {
+            startActivity(new Intent(this, com.tinyhack.ssh.files.FileManagerActivity.class));
+            return true;
         } else if (id == R.id.action_ssh_keys) {
             Intent intent = new Intent(this, com.tinyhack.ssh.ssh.SshKeysActivity.class);
             startActivity(intent);
@@ -1284,6 +1295,19 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
     }
 
     private void handleSessionClosed(int exitCode) {
+        TerminalSession shown = terminalView != null ? terminalView.getSession() : null;
+        if (shown != null && shown.isReturnToFilesOnExit() && !shown.isRunning()) {
+            // A file-manager transfer or editor the user just finished with:
+            // drop it and go back to the folder it was started from.
+            Intent[] back = shown.getReturnIntents();
+            closeDeadCurrentSession();
+            if (back != null && back.length > 0) {
+                startActivities(back);
+            } else {
+                startActivity(new Intent(this, com.tinyhack.ssh.files.FileManagerActivity.class));
+            }
+            return;
+        }
         // Deliberately keep the dead session on screen: the terminal draws a
         // "<session closed>" banner and (outside fullscreen) a Close button,
         // so remote disconnects are never mistaken for a live session.
