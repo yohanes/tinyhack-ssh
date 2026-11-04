@@ -290,6 +290,24 @@ public class BootstrapInstaller {
                     copyAssetFile(context, subAssetPath, subTargetDir);
                 }
             }
+            if (assetPath.equals("usr/share/uml")) removeStaleTemplates(targetDir, assets);
+        }
+    }
+
+    /**
+     * Templates are content-addressed, so an app update leaves the previous
+     * ones behind (tens of MB each). They are only read while creating an
+     * environment; a creation in progress keeps its open file after deletion.
+     */
+    private static void removeStaleTemplates(File dir, String[] current) {
+        java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(current));
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            String n = f.getName();
+            if ((n.endsWith(".ext4.gzip") || n.endsWith(".ext4.gzip.partial")) && !keep.contains(n)) {
+                if (!f.delete()) SafeLog.w(TAG, "Could not remove old UML template " + n);
+            }
         }
     }
 

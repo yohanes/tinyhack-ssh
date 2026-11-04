@@ -1,0 +1,628 @@
+diff --git a/tools/um-arm64/harness/umnet.c b/tools/um-arm64/harness/umnet.c
+index c7ca2ad..279f57c 100644
+--- a/tools/um-arm64/harness/umnet.c
++++ b/tools/um-arm64/harness/umnet.c
+@@ -30,8 +30,13 @@
+  * with the guest end of the datagram pair inherited, appending the vector
+  * argument that points at it.
+  *
++ * Because every frame passes through the pump, umnet also answers DNS for
++ * the guest (see "DNS forwarder" below): queries to a virtual nameserver
++ * address (10.0.2.3) never reach passt and are resolved by Android itself.
++ *
+  * Usage:
+- *   umnet [--passt PATH] [--mac MAC] -- ./linux <uml args...>
++ *   umnet [--passt PATH] [--mac MAC] [--dns ADDR | --no-dns-proxy]
++ *         -- ./linux <uml args...>
+  *
+  * The UML side ends up with, appended to its command line:
+  *   vec0:transport=fd,fd=<n>,mac=<mac>
+@@ -40,14 +45,20 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strings.h>
+ #include <unistd.h>
+ #include <errno.h>
+ #include <signal.h>
+ #include <fcntl.h>
+ #include <poll.h>
++#include <pthread.h>
++#include <time.h>
++#include <netdb.h>
++#include <netinet/in.h>
+ #include <sys/socket.h>
+ #include <sys/wait.h>
+ #include <arpa/inet.h>
++#include <android/multinetwork.h>
+ 
+ #define MAX_FRAME	65536
+ #define PFX		4		/* qemu socket protocol length prefix */
+@@ -100,6 +111,489 @@ static int write_full(int fd, const void *buf, size_t n)
+ 	return 0;
+ }
+ 
++/*
++ * DNS forwarder.
++ *
++ * An Android app cannot learn the network's nameservers the usual way:
++ * there is no /etc/resolv.conf, the net.dns* properties are empty, and the
++ * servers change whenever the phone moves between Wi-Fi, mobile data and
++ * VPN. Pointing the guest at a public resolver works for the internet but
++ * not for names the local network serves (a router's DHCP host names).
++ *
++ * So the guest gets a nameserver that does not exist, dns_addr, and umnet
++ * answers it. UDP queries are handed unchanged to Android's own resolver
++ * with android_res_nsend(), which sends them to whatever DNS the phone is
++ * using right now: the Wi-Fi router, the carrier, a VPN, or Private DNS,
++ * with Android's cache in front. A/AAAA queries for *.local go through
++ * getaddrinfo() instead, which on Android also resolves multicast DNS
++ * names; it blocks, so each runs on a short-lived thread.
++ *
++ * Doing this in the pump, rather than in passt or on a loopback socket,
++ * means nothing listens on a port other apps could reach, and passt needs
++ * no change. Answers are sent whole (fragmented at the guest MTU when
++ * large), because Android has already done any TCP retry upstream; TCP
++ * connections to dns_addr are reset at once so a client that insists on
++ * TCP fails fast instead of waiting for a timeout.
++ */
++#define DNS_MAX_PENDING	32
++#define DNS_TIMEOUT_MS	10000
++#define DNS_MAX_QUERY	4096
++#define DNS_MAX_ANSWER	(65535 - 20 - 8)
++#define DNS_LOCAL_TTL	10
++#define GUEST_MTU	1500
++
++enum { DNS_RESOLVER, DNS_LOCAL };
++
++struct dns_query {
++	int fd;				/* -1: slot free */
++	int kind;
++	struct timespec start;
++	unsigned char guest_mac[6], our_mac[6];
++	uint32_t guest_ip;		/* network byte order */
++	uint16_t guest_port;		/* network byte order */
++	size_t len;
++	unsigned char msg[DNS_MAX_QUERY];
++};
++
++struct dns_local_job {
++	int fd;
++	uint16_t qtype;
++	char name[256];
++	size_t head_len;		/* header + question */
++	unsigned char head[DNS_MAX_QUERY];
++};
++
++static int dns_enabled = 1;
++static uint32_t dns_addr;		/* network byte order */
++static struct dns_query dns_q[DNS_MAX_PENDING];
++static uint16_t ip_id;
++
++static uint32_t csum_add(uint32_t sum, const void *buf, size_t len)
++{
++	const unsigned char *p = buf;
++
++	while (len > 1) {
++		sum += (p[0] << 8) | p[1];
++		p += 2;
++		len -= 2;
++	}
++	if (len)
++		sum += p[0] << 8;
++	return sum;
++}
++
++static uint16_t csum_fold(uint32_t sum)
++{
++	while (sum >> 16)
++		sum = (sum & 0xffff) + (sum >> 16);
++	return (uint16_t)~sum;
++}
++
++static void put16(unsigned char *p, unsigned v)
++{
++	p[0] = v >> 8;
++	p[1] = v;
++}
++
++static void ip4_header(unsigned char *ip, size_t total, unsigned frag,
++		       unsigned proto, const void *src, const void *dst)
++{
++	ip[0] = 0x45;
++	ip[1] = 0;
++	put16(ip + 2, total);
++	put16(ip + 4, ip_id);
++	put16(ip + 6, frag);
++	ip[8] = 64;
++	ip[9] = proto;
++	put16(ip + 10, 0);
++	memcpy(ip + 12, src, 4);
++	memcpy(ip + 16, dst, 4);
++	put16(ip + 10, csum_fold(csum_add(0, ip, 20)));
++}
++
++/* Send a DNS message to the guest as one UDP datagram from dns_addr:53. */
++static void dns_send(int uml_fd, const struct dns_query *q,
++		     const unsigned char *msg, size_t len)
++{
++	static unsigned char dgram[8 + DNS_MAX_ANSWER];
++	unsigned char out[14 + GUEST_MTU];
++	size_t ulen = 8 + len, off, chunk;
++	uint32_t sum;
++	uint16_t c;
++
++	if (len > DNS_MAX_ANSWER)
++		return;
++	put16(dgram, 53);
++	memcpy(dgram + 2, &q->guest_port, 2);
++	put16(dgram + 4, ulen);
++	put16(dgram + 6, 0);
++	memcpy(dgram + 8, msg, len);
++	sum = csum_add(0, &dns_addr, 4);
++	sum = csum_add(sum, &q->guest_ip, 4);
++	sum += IPPROTO_UDP + ulen;
++	c = csum_fold(csum_add(sum, dgram, ulen));
++	put16(dgram + 6, c ? c : 0xffff);
++
++	ip_id++;
++	for (off = 0; off < ulen; off += chunk) {
++		/* Fragment payloads are multiples of 8 bytes, except the last. */
++		chunk = ulen - off > GUEST_MTU - 20 ? GUEST_MTU - 20 : ulen - off;
++		memcpy(out, q->guest_mac, 6);
++		memcpy(out + 6, q->our_mac, 6);
++		put16(out + 12, 0x0800);
++		ip4_header(out + 14, 20 + chunk,
++			   (off + chunk < ulen ? 0x2000 : 0) | (off / 8),
++			   IPPROTO_UDP, &dns_addr, &q->guest_ip);
++		memcpy(out + 34, dgram + off, chunk);
++		if (send(uml_fd, out, 34 + chunk, MSG_DONTWAIT) < 0 && verbose)
++			perror("umnet: dns reply");
++	}
++}
++
++/*
++ * Find the end of the single question in a query; optionally return its
++ * name in dotted form. 0 when the message is not a one-question query.
++ */
++static size_t dns_question(const unsigned char *m, size_t len, char *name,
++			   size_t name_size, unsigned *qtype, unsigned *qclass)
++{
++	size_t p = 12, n = 0;
++
++	if (len < 12 || m[4] || m[5] != 1)
++		return 0;
++	while (p < len && m[p]) {
++		size_t l = m[p];
++
++		if (l > 63 || p + 1 + l >= len)
++			return 0;
++		if (name) {
++			if (n + l + 2 > name_size)
++				return 0;
++			if (n)
++				name[n++] = '.';
++			memcpy(name + n, m + p + 1, l);
++			n += l;
++		}
++		p += 1 + l;
++	}
++	if (p + 5 > len)
++		return 0;
++	if (name)
++		name[n] = 0;
++	*qtype = (m[p + 1] << 8) | m[p + 2];
++	*qclass = (m[p + 3] << 8) | m[p + 4];
++	return p + 5;
++}
++
++/* Header and question of q, turned into a reply with no records. */
++static size_t dns_reply_head(unsigned char *out, const unsigned char *query,
++			     size_t len, unsigned rcode)
++{
++	unsigned t, c;
++	size_t end = dns_question(query, len, NULL, 0, &t, &c);
++
++	if (!end)
++		return 0;
++	memcpy(out, query, end);
++	out[2] = 0x80 | (query[2] & 0x79);	/* QR; keep opcode and RD */
++	out[3] = 0x80 | rcode;			/* RA */
++	memset(out + 6, 0, 6);
++	return end;
++}
++
++/*
++ * Say once per kind of error why lookups fail: the guest only sees
++ * SERVFAIL, and the usual cause is outside it (no network, or Android
++ * blocking the app's network while it is in the background).
++ */
++static void dns_report(int err)
++{
++	static unsigned char seen[256];
++
++	if (err <= 0 || err > 255 || (seen[err] && !verbose))
++		return;
++	seen[err] = 1;
++	fprintf(stderr, "umnet: DNS lookup failed: %s%s\n", strerror(err),
++		err == ECONNREFUSED ?
++		" (Android may be blocking this app's network)" : "");
++}
++
++static void dns_fail(int uml_fd, const struct dns_query *q, unsigned rcode)
++{
++	unsigned char out[DNS_MAX_QUERY];
++	size_t n = dns_reply_head(out, q->msg, q->len, rcode);
++
++	if (n)
++		dns_send(uml_fd, q, out, n);
++}
++
++static int dns_is_local_name(const char *name)
++{
++	size_t n = strlen(name);
++	const char *p;
++
++	if (n <= 6 || strcasecmp(name + n - 6, ".local"))
++		return 0;
++	for (p = name; *p; p++)
++		if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
++		      (*p >= '0' && *p <= '9') || *p == '-' || *p == '_' ||
++		      *p == '.'))
++			return 0;
++	return 1;
++}
++
++static void *dns_local_lookup(void *arg)
++{
++	struct dns_local_job *job = arg;
++	struct addrinfo hints, *res = NULL, *ai;
++	unsigned char out[DNS_MAX_QUERY + 16 * 28];
++	size_t n = job->head_len, alen;
++	unsigned count = 0, i, rcode = 0;
++	const unsigned char *a;
++	int rc;
++
++	memset(&hints, 0, sizeof(hints));
++	hints.ai_family = job->qtype == 1 ? AF_INET : AF_INET6;
++	hints.ai_socktype = SOCK_DGRAM;
++	rc = getaddrinfo(job->name, NULL, &hints, &res);
++	memcpy(out, job->head, n);
++	/*
++	 * Bionic reports an unknown name as EAI_NODATA, not EAI_NONAME. For
++	 * A that means NXDOMAIN; for AAAA answer "no records" instead, so an
++	 * IPv4-only host is not declared nonexistent by its missing AAAA.
++	 */
++	if (rc == EAI_NONAME || (rc == EAI_NODATA && job->qtype == 1))
++		rcode = 3;			/* NXDOMAIN */
++	else if (rc && rc != EAI_NODATA)
++		rcode = 2;			/* SERVFAIL */
++	for (ai = rc ? NULL : res; ai && count < 16; ai = ai->ai_next) {
++		if (ai->ai_family == AF_INET && job->qtype == 1) {
++			a = (const unsigned char *)
++				&((struct sockaddr_in *)ai->ai_addr)->sin_addr;
++			alen = 4;
++		} else if (ai->ai_family == AF_INET6 && job->qtype == 28) {
++			const struct in6_addr *a6 =
++				&((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
++
++			if (IN6_IS_ADDR_V4MAPPED(a6))
++				continue;
++			a = (const unsigned char *)a6;
++			alen = 16;
++		} else {
++			continue;
++		}
++		/* getaddrinfo may list one address several times. */
++		for (i = job->head_len; i < n; i += 12 + alen)
++			if (!memcmp(out + i + 12, a, alen))
++				break;
++		if (i < n)
++			continue;
++		out[n++] = 0xc0;		/* name: pointer to the question */
++		out[n++] = 12;
++		put16(out + n, job->qtype);
++		put16(out + n + 2, 1);		/* class IN */
++		put16(out + n + 4, 0);
++		put16(out + n + 6, DNS_LOCAL_TTL);
++		put16(out + n + 8, alen);
++		memcpy(out + n + 10, a, alen);
++		n += 10 + alen;
++		count++;
++	}
++	if (res)
++		freeaddrinfo(res);
++	out[3] = 0x80 | rcode;
++	put16(out + 6, count);
++	send(job->fd, out, n, MSG_NOSIGNAL);
++	close(job->fd);
++	free(job);
++	return NULL;
++}
++
++/* Start a *.local lookup on a thread; the fd becomes readable with the reply. */
++static int dns_start_local(const struct dns_query *q, const char *name,
++			   unsigned qtype)
++{
++	struct dns_local_job *job = calloc(1, sizeof(*job));
++	pthread_attr_t attr;
++	pthread_t thread;
++	int sp[2], ok;
++
++	if (!job)
++		return -1;
++	job->head_len = dns_reply_head(job->head, q->msg, q->len, 0);
++	if (!job->head_len ||
++	    socketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sp)) {
++		free(job);
++		return -1;
++	}
++	job->fd = sp[1];
++	job->qtype = qtype;
++	snprintf(job->name, sizeof(job->name), "%s", name);
++	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
++	ok = !pthread_create(&thread, &attr, dns_local_lookup, job);
++	pthread_attr_destroy(&attr);
++	if (!ok) {
++		close(sp[0]);
++		close(sp[1]);
++		free(job);
++		return -1;
++	}
++	return sp[0];
++}
++
++static void dns_start(int uml_fd, const unsigned char *frame,
++		      const unsigned char *ip, const unsigned char *udp,
++		      const unsigned char *msg, size_t len)
++{
++	struct dns_query *q = NULL;
++	unsigned qtype, qclass;
++	char name[256];
++	int i, fd;
++
++	for (i = 0; i < DNS_MAX_PENDING && !q; i++)
++		if (dns_q[i].fd < 0)
++			q = &dns_q[i];
++	/* Too many outstanding queries: drop, the guest will retry. */
++	if (!q || len < 12 || len > DNS_MAX_QUERY)
++		return;
++	memcpy(q->guest_mac, frame + 6, 6);
++	memcpy(q->our_mac, frame, 6);
++	memcpy(&q->guest_ip, ip + 12, 4);
++	memcpy(&q->guest_port, udp, 2);
++	memcpy(q->msg, msg, len);
++	q->len = len;
++	clock_gettime(CLOCK_MONOTONIC, &q->start);
++
++	if (dns_question(msg, len, name, sizeof(name), &qtype, &qclass) &&
++	    qclass == 1 && (qtype == 1 || qtype == 28) &&
++	    dns_is_local_name(name)) {
++		fd = dns_start_local(q, name, qtype);
++		q->kind = DNS_LOCAL;
++	} else {
++		fd = android_res_nsend(NETWORK_UNSPECIFIED, msg, len, 0);
++		q->kind = DNS_RESOLVER;
++	}
++	if (fd < 0) {
++		dns_report(q->kind == DNS_RESOLVER ? -fd : EAGAIN);
++		dns_fail(uml_fd, q, 2);
++		return;
++	}
++	q->fd = fd;
++}
++
++static void dns_finish(int uml_fd, struct dns_query *q)
++{
++	static unsigned char answer[DNS_MAX_ANSWER];
++	int len, rcode = 0;
++
++	if (q->kind == DNS_RESOLVER) {
++		len = android_res_nresult(q->fd, &rcode, answer, sizeof(answer));
++	} else {
++		len = recv(q->fd, answer, sizeof(answer), MSG_DONTWAIT);
++		close(q->fd);
++	}
++	q->fd = -1;
++	if (len >= 12) {
++		/* A cached answer may carry another ID; the guest checks it. */
++		memcpy(answer, q->msg, 2);
++		dns_send(uml_fd, q, answer, len);
++	} else {
++		dns_report(q->kind == DNS_RESOLVER ? -len : EIO);
++		dns_fail(uml_fd, q, 2);
++	}
++}
++
++static void dns_expire(void)
++{
++	struct timespec now;
++	long ms;
++	int i;
++
++	clock_gettime(CLOCK_MONOTONIC, &now);
++	for (i = 0; i < DNS_MAX_PENDING; i++) {
++		if (dns_q[i].fd < 0)
++			continue;
++		ms = (now.tv_sec - dns_q[i].start.tv_sec) * 1000 +
++		     (now.tv_nsec - dns_q[i].start.tv_nsec) / 1000000;
++		if (ms < DNS_TIMEOUT_MS)
++			continue;
++		if (dns_q[i].kind == DNS_RESOLVER)
++			android_res_cancel(dns_q[i].fd);
++		else
++			close(dns_q[i].fd);
++		dns_q[i].fd = -1;
++	}
++}
++
++/* Refuse a TCP segment to dns_addr with a reset (RFC 9293 3.10.7.1). */
++static void dns_tcp_reset(int uml_fd, const unsigned char *frame,
++			  const unsigned char *ip, const unsigned char *tcp,
++			  size_t tcp_len)
++{
++	unsigned char out[14 + 20 + 20], *ot = out + 34;
++	unsigned flags = tcp[13], seq, ack;
++	size_t doff = (tcp[12] >> 4) * 4;
++	uint32_t v, sum;
++
++	if (tcp_len < 20 || doff < 20 || doff > tcp_len || (flags & 0x04))
++		return;
++	memset(out, 0, sizeof(out));
++	memcpy(out, frame + 6, 6);
++	memcpy(out + 6, frame, 6);
++	put16(out + 12, 0x0800);
++	ip_id++;
++	ip4_header(out + 14, 40, 0, IPPROTO_TCP, ip + 16, ip + 12);
++	memcpy(ot, tcp + 2, 2);
++	memcpy(ot + 2, tcp, 2);
++	if (flags & 0x10) {			/* ACK: reset at their ack */
++		memcpy(ot + 4, tcp + 8, 4);
++		ot[13] = 0x04;
++	} else {				/* acknowledge what they sent */
++		memcpy(&v, tcp + 4, 4);
++		seq = ntohl(v);
++		ack = seq + (tcp_len - doff) + !!(flags & 0x02) + !!(flags & 0x01);
++		v = htonl(ack);
++		memcpy(ot + 8, &v, 4);
++		ot[13] = 0x14;			/* RST, ACK */
++	}
++	ot[12] = 5 << 4;
++	sum = csum_add(0, ip + 16, 4);
++	sum = csum_add(sum, ip + 12, 4);
++	sum += IPPROTO_TCP + 20;
++	put16(ot + 16, csum_fold(csum_add(sum, ot, 20)));
++	send(uml_fd, out, sizeof(out), MSG_DONTWAIT);
++}
++
++/*
++ * Handle a guest frame addressed to dns_addr. Returns 1 when the frame was
++ * consumed: everything sent to the virtual nameserver stays in umnet.
++ */
++static int dns_intercept(int uml_fd, const unsigned char *f, size_t n)
++{
++	const unsigned char *ip = f + 14, *l4;
++	size_t ihl, total, ulen;
++
++	if (!dns_enabled || n < 14 + 20 || f[12] != 0x08 || f[13] != 0 ||
++	    (ip[0] >> 4) != 4 || memcmp(ip + 16, &dns_addr, 4))
++		return 0;
++	ihl = (ip[0] & 15) * 4;
++	total = (ip[2] << 8) | ip[3];
++	if (ihl < 20 || total < ihl || total > n - 14)
++		return 1;
++	if (((ip[6] << 8) | ip[7]) & 0x3fff)	/* a fragment */
++		return 1;
++	l4 = ip + ihl;
++	if (ip[9] == IPPROTO_UDP && total - ihl >= 8) {
++		ulen = (l4[4] << 8) | l4[5];
++		if (ulen >= 8 && ulen <= total - ihl && l4[2] == 0 && l4[3] == 53)
++			dns_start(uml_fd, f, ip, l4, l4 + 8, ulen - 8);
++	} else if (ip[9] == IPPROTO_TCP) {
++		dns_tcp_reset(uml_fd, f, ip, l4, total - ihl);
++	}
++	return 1;
++}
++
+ /*
+  * Pump frames both ways until either side closes.
+  *
+@@ -111,13 +605,16 @@ static int write_full(int fd, const void *buf, size_t n)
+ static void pump(int uml_fd, int passt_fd)
+ {
+ 	static unsigned char frame[PFX + MAX_FRAME];
+-	struct pollfd pfd[2];
++	struct pollfd pfd[2 + DNS_MAX_PENDING];
++	int slot[DNS_MAX_PENDING];
+ 
+ 	pfd[0].fd = uml_fd;
+ 	pfd[1].fd = passt_fd;
+ 
+ 	for (;;) {
+ 		siginfo_t child = {0};
++		int np = 2, k;
++
+ 		/* A SOCK_DGRAM peer closing does not produce POLLHUP. Check
+ 		 * children without reaping so shutdown cannot strand the pump. */
+ 		if (stopping ||
+@@ -127,8 +624,15 @@ static void pump(int uml_fd, int passt_fd)
+ 		if (!waitid(P_PID, passt_pid, &child, WEXITED | WNOHANG | WNOWAIT) && child.si_pid)
+ 			return;
+ 		pfd[0].events = pfd[1].events = POLLIN;
++		for (k = 0; k < DNS_MAX_PENDING; k++) {
++			if (dns_q[k].fd < 0)
++				continue;
++			pfd[np].fd = dns_q[k].fd;
++			pfd[np].events = POLLIN;
++			slot[np++ - 2] = k;
++		}
+ 
+-		if (poll(pfd, 2, 250) < 0) {
++		if (poll(pfd, np, 250) < 0) {
+ 			if (errno == EINTR)
+ 				continue;
+ 			return;
+@@ -146,11 +650,19 @@ static void pump(int uml_fd, int passt_fd)
+ 				memcpy(frame, &len, PFX);
+ 				if (verbose)
+ 					fprintf(stderr, "umnet: guest->host %zd\n", n);
+-				if (write_full(passt_fd, frame, PFX + n))
++				if (dns_intercept(uml_fd, frame + PFX, n))
++					;
++				else if (write_full(passt_fd, frame, PFX + n))
+ 					return;
+ 			}
+ 		}
+ 
++		/* DNS answers ready (or failed) for the guest */
++		for (k = 2; k < np; k++)
++			if (pfd[k].revents)
++				dns_finish(uml_fd, &dns_q[slot[k - 2]]);
++		dns_expire();
++
+ 		/* host -> guest: length-prefixed in, datagram out */
+ 		if (pfd[1].revents & POLLIN) {
+ 			uint32_t len;
+@@ -188,7 +700,9 @@ int main(int argc, char **argv)
+ 	const char *passt_path = "./passt";
+ 	const char *mac = "02:00:00:00:00:01";
+ 	const char *iface = NULL;	/* passt -i: which host interface to mirror */
+-	const char *dns = "1.1.1.1";	/* passt -D: nameserver to announce */
++	/* The virtual nameserver umnet answers itself, also announced by
++	 * passt's DHCP. 10.0.2.3 matches qemu's user-mode network. */
++	const char *dns = "10.0.2.3";
+ 	const char *addr = "10.0.2.15";	/* passt -a: address given to the guest */
+ 	const char *mask = "24";	/* passt -n */
+ 	const char *gw = "10.0.2.2";	/* passt -g: gateway passt emulates */
+@@ -197,6 +711,8 @@ int main(int argc, char **argv)
+ 	char vecarg[128];
+ 	char **child;
+ 
++	for (i = 0; i < DNS_MAX_PENDING; i++)
++		dns_q[i].fd = -1;
+ 	for (i = 1; i < argc; i++) {
+ 		if (!strcmp(argv[i], "--verbose"))
+ 			verbose = 1;
+@@ -208,6 +724,8 @@ int main(int argc, char **argv)
+ 			iface = argv[++i];
+ 		else if (!strcmp(argv[i], "--dns") && i + 1 < argc)
+ 			dns = argv[++i];
++		else if (!strcmp(argv[i], "--no-dns-proxy"))
++			dns_enabled = 0;	/* --dns is then a real server */
+ 		else if (!strcmp(argv[i], "--addr") && i + 1 < argc)
+ 			addr = argv[++i];
+ 		else if (!strcmp(argv[i], "--mask") && i + 1 < argc)
+@@ -223,7 +741,11 @@ int main(int argc, char **argv)
+ 	}
+ 	if (i >= argc || strcmp(argv[i], "--")) {
+ 		fprintf(stderr,
+-			"usage: umnet [--passt PATH] [--mac MAC] -- ./linux <args...>\n");
++			"usage: umnet [--passt PATH] [--mac MAC] [--dns ADDR | --no-dns-proxy] -- ./linux <args...>\n");
++		return 2;
++	}
++	if (inet_pton(AF_INET, dns, &dns_addr) != 1) {
++		fprintf(stderr, "umnet: --dns needs an IPv4 address\n");
+ 		return 2;
+ 	}
+ 	umlarg = i + 1;

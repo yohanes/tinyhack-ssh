@@ -1,0 +1,71 @@
+#!/bin/sh
+# Tinyhack UML boot shim. The kernel runs this from a small initramfs before
+# the environment disk's own /init, so features that need host information
+# (such as sharing the app home at /data) work without rebuilding existing
+# disks. It mounts the disk, adds optional mounts, and hands over with
+# switch_root; the disk's init then boots exactly as without the shim.
+export PATH=/bin
+fail() {
+    echo "uml-shim: $*"
+    echo 'UML_SHIM_FAILED'
+    poweroff -f
+}
+mount -t proc proc /proc || fail 'cannot mount /proc'
+mount -t devtmpfs devtmpfs /dev || fail 'cannot mount /dev'
+
+read -r cmdline < /proc/cmdline
+home='' share='' create='' flags=rw
+for arg in $cmdline; do
+    case "$arg" in
+        th_home=*) home=${arg#th_home=} ;;
+        th_share=1) share=1 ;;
+        uml_create=*) create=1 ;;
+        ro) flags=ro ;;
+    esac
+done
+
+mount -t ext4 -o "$flags" /dev/ubda /newroot || fail 'cannot mount the environment disk'
+
+# DNS: the network launcher answers queries sent to 10.0.2.3 through
+# Android's resolver, so local network names work. Disks made before that
+# name 1.1.1.1; replace only that untouched default (or a missing file),
+# never a nameserver the user chose. A symlink is left alone: it would
+# resolve against this initramfs, not the disk.
+conf=/newroot/etc/resolv.conf
+if [ "$flags" = rw ] && [ ! -L "$conf" ]; then
+    default=1
+    if [ -f "$conf" ]; then
+        while read -r line; do
+            [ -z "$line" ] || [ "$line" = 'nameserver 1.1.1.1' ] || default=''
+        done < "$conf"
+    fi
+    if [ -n "$default" ]; then
+        echo 'nameserver 10.0.2.3' > "$conf" || echo 'uml-shim: could not update /etc/resolv.conf'
+    fi
+fi
+
+# Share the Android app home at /data. Creation runs before the user exists,
+# so it is skipped there. The owner is the environment's user, so ordinary
+# commands (not only sudo) can read and write it.
+if [ -n "$share" ] && [ -n "$home" ] && [ -z "$create" ] && [ "$flags" = rw ]; then
+    user=''
+    [ -s /newroot/etc/uml-user ] && read -r user < /newroot/etc/uml-user
+    uid=0 gid=0
+    if [ -n "$user" ]; then
+        while IFS=: read -r name _ u g _; do
+            if [ "$name" = "$user" ]; then uid=$u; gid=$g; break; fi
+        done < /newroot/etc/passwd
+    fi
+    if [ -L /newroot/data ] || { [ -e /newroot/data ] && [ ! -d /newroot/data ]; }; then
+        echo 'uml-shim: /data exists and is not a folder; the app home is not shared'
+    else
+        mkdir -p /newroot/data
+        mount -t hostfs -o "hostfs=$home,uid=$uid,gid=$gid" hostfs /newroot/data \
+            || echo 'uml-shim: could not share the app home at /data'
+    fi
+fi
+
+# The disk's boot script mounts its own /proc; keep the populated /dev.
+umount /proc
+mount --move /dev /newroot/dev || umount /dev
+exec switch_root /newroot /init

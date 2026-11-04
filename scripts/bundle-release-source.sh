@@ -63,8 +63,11 @@ copy_source_tree "$PROJECT_DIR/build/uml/passt" "$STAGE/corresponding-source/pas
 copy_source_tree "$PROJECT_DIR/build/uml/busybox-1.38.0" "$STAGE/corresponding-source/uml-busybox"
 cp "$PROJECT_DIR/build/uml/kernel-build/.config" "$STAGE/corresponding-source/uml-linux/.config"
 cp "$PROJECT_DIR/build/uml/busybox-build/.config" "$STAGE/corresponding-source/uml-busybox/.config"
+# The boot shim's BusyBox is built from the same source with its own applets.
+cp "$PROJECT_DIR/build/uml/busybox-shim-build/.config" "$STAGE/corresponding-source/uml-busybox/shim.config"
 copy_source_tree "$PROJECT_DIR/build/toolchains/zig-x86_64-linux-0.17.0/lib/libc/musl" "$STAGE/corresponding-source/musl"
 copy_source_tree "$PROJECT_DIR/build/uml/debian-sources" "$STAGE/corresponding-source/debian-template"
+copy_source_tree "$PROJECT_DIR/build/uml/ubuntu-sources" "$STAGE/corresponding-source/ubuntu-template"
 copy_source_tree "$PROJECT_DIR/build/uml/glibc-sources" "$STAGE/corresponding-source/uml-glibc"
 
 {
@@ -74,9 +77,10 @@ copy_source_tree "$PROJECT_DIR/build/uml/glibc-sources" "$STAGE/corresponding-so
     echo "Ghostty commit: $(git -C "$PROJECT_DIR/ghostty" rev-parse HEAD)"
     echo "UML kernel commit: $(git -C "$PROJECT_DIR/build/uml/linux" rev-parse HEAD)"
     echo "passt commit: $(git -C "$PROJECT_DIR/build/uml/passt" rev-parse HEAD)"
-    echo "UML build entry points: scripts/build-uml-{kernel,network,rootfs,env-template,env-tools}.sh"
+    echo "UML build entry points: scripts/build-uml-{kernel,network,rootfs,shim,env-template,env-tools}.sh"
     echo "Restore uml-linux to build/uml/linux, passt to build/uml/passt, uml-busybox to build/uml/busybox-1.38.0."
-    echo "Debian exact source archives/checksums are in corresponding-source/debian-template; Ubuntu glibc/cross-toolchain sources in uml-glibc."
+    echo "Debian and Ubuntu template source archives/checksums are in corresponding-source/{debian,ubuntu}-template; Ubuntu glibc/cross-toolchain sources in uml-glibc."
+    echo "uml-busybox/.config builds the template BusyBox; uml-busybox/shim.config builds the boot shim's BusyBox."
     echo
     echo "Build entry points: scripts/build-ghostty-android.sh, scripts/rebuild-userland-16kb.sh, and the Gradle build."
     echo "Restore corresponding-source/ghostty to ghostty/; restore other trees under"

@@ -61,8 +61,9 @@ there is no package allowlist imposed by this experiment.
 APT initially uses Debian's HTTP mirrors with signed repository metadata and
 package hash verification. For HTTPS mirrors, install `ca-certificates`, then
 edit `/etc/apt/sources.list.d/debian.sources` with vi to use HTTPS. Do not disable
-APT signature verification. DNS defaults to 1.1.1.1 and can be edited in
-`/etc/resolv.conf`; the boot script preserves manual changes.
+APT signature verification. The image names `1.1.1.1` in `/etc/resolv.conf`;
+the app's boot shim replaces that default with `10.0.2.3`, the network
+launcher's forwarder to Android's DNS, and keeps any nameserver you set.
 
 ## Storage and artifacts
 

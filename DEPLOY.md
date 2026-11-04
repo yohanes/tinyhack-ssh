@@ -51,8 +51,8 @@ The source bundler includes tracked files and all non-ignored untracked files.
 Edit `app/build.gradle` before uploading a new release:
 
 ```groovy
-versionCode 10
-versionName "1.2.0"
+versionCode 11
+versionName "1.3.0"
 ```
 
 Rules:
@@ -129,14 +129,22 @@ Do not continue if any native file reports `0x1000`, `0x2000`, or `FAIL`.
 ## 5. Build and test on the connected device
 
 UML now ships in both distributions. Rebuild it with
-`scripts/build-uml-kernel.sh`, `scripts/build-uml-network.sh`, and
-`scripts/package-uml-runtime.sh` (NDK r27c for UML; override with `UML_NDK`).
-Retain the pinned Debian template in `app/src/main/assets/usr/share/uml/`.
+`scripts/build-uml-kernel.sh`, `scripts/build-uml-network.sh`,
+`scripts/build-uml-shim.sh`, and `scripts/package-uml-runtime.sh` (NDK r27c for
+UML; override with `UML_NDK`). Retain the pinned Debian and Ubuntu templates and
+`shim.cpio` in `app/src/main/assets/usr/share/uml/`.
 The `.gzip` suffix is intentional: Android expands `.gz` assets automatically.
-Run `uv run scripts/fetch-debian-template-sources.py` and retain the exact
-glibc/cross-toolchain sources before generating the corresponding-source archive.
-Verify `uml-env create -n releasecheck -d 512M -u user` works with no manually
-installed template, then check sudo, APT, sparse allocation and profile launch.
+Run `uv run scripts/fetch-debian-template-sources.py debian` and `... ubuntu`,
+and retain the exact glibc/cross-toolchain sources, before generating the
+corresponding-source archive.
+In the app's **Linux environments** screen, create one Debian and one Ubuntu
+environment with no manually installed template, start each, and check sudo,
+APT, `/data` (the app home, owned by the environment user), sparse allocation,
+**Add to profiles** launch, Settings, and Delete, and that a local network
+host name resolves inside the guest (`getent hosts NAME`). Then run
+`uv run scripts/test-uml-share-home.py NAME` and `uv run
+scripts/test-uml-dns.py NAME --lan-name HOST --mdns-name HOST.local` on a
+stopped, disposable one, with the phone awake and the app in the foreground.
 
 Build lint and both debug APKs:
 
@@ -286,7 +294,7 @@ Generate the complete corresponding-source archive for the exact release:
 
 ```bash
 scripts/bundle-release-source.sh
-(cd release && sha256sum -c tinyhack-ssh-1.2.0-source.tar.xz.sha256)
+(cd release && sha256sum -c tinyhack-ssh-1.3.0-source.tar.xz.sha256)
 ```
 
 The version in the filename follows `versionName`. Publish both files on the
@@ -294,8 +302,8 @@ Tinyhack SSH website or release-download page for as long as that binary release
 offered:
 
 ```text
-release/tinyhack-ssh-1.2.0-source.tar.xz
-release/tinyhack-ssh-1.2.0-source.tar.xz.sha256
+release/tinyhack-ssh-1.3.0-source.tar.xz
+release/tinyhack-ssh-1.3.0-source.tar.xz.sha256
 ```
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish

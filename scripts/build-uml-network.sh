@@ -31,14 +31,21 @@ make -C "$SRC" CC="$ZIG cc -target aarch64-linux-musl" \
     LDFLAGS='-static -Wl,-z,max-page-size=16384' passt
 mkdir -p "$WORK/artifacts"
 cp "$SRC/passt" "$WORK/artifacts/passt"
-PATCH="$PROJECT/patches/uml-network-cleanup.patch"
-if git -C "$WORK/linux" apply --check "$PATCH" 2>/dev/null; then
-    git -C "$WORK/linux" apply "$PATCH"
-else
-    git -C "$WORK/linux" apply --reverse --check "$PATCH"
+# umnet patches stack: cleanup first, then the DNS forwarder on top.
+DNS_PATCH="$PROJECT/patches/uml-network-dns.patch"
+if ! git -C "$WORK/linux" apply --reverse --check "$DNS_PATCH" 2>/dev/null; then
+    PATCH="$PROJECT/patches/uml-network-cleanup.patch"
+    if git -C "$WORK/linux" apply --check "$PATCH" 2>/dev/null; then
+        git -C "$WORK/linux" apply "$PATCH"
+    else
+        git -C "$WORK/linux" apply --reverse --check "$PATCH"
+    fi
+    git -C "$WORK/linux" apply "$DNS_PATCH"
 fi
+# Dynamic, not static: the DNS forwarder calls Android's resolver
+# (android_res_nsend in libandroid), which has no static form.
 "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang" \
-    -O2 -static -Wl,-z,max-page-size=16384 \
-    "$WORK/linux/tools/um-arm64/harness/umnet.c" -o "$WORK/artifacts/umnet"
+    -O2 -Wall -Wl,-z,max-page-size=16384 \
+    "$WORK/linux/tools/um-arm64/harness/umnet.c" -o "$WORK/artifacts/umnet" -landroid
 file "$WORK/artifacts/passt" "$WORK/artifacts/umnet"
 sha256sum "$WORK/artifacts/passt" "$WORK/artifacts/umnet"

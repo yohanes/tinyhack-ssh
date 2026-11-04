@@ -34,6 +34,13 @@ if git -C "$TREE" apply --check "$PATCH" 2>/dev/null; then
 else
     git -C "$TREE" apply --reverse --check "$PATCH"
 fi
+# hostfs uid=/gid= options: /data (the app home) belongs to the guest user.
+PATCH="$PROJECT/patches/uml-hostfs-owner.patch"
+if git -C "$TREE" apply --check "$PATCH" 2>/dev/null; then
+    git -C "$TREE" apply "$PATCH"
+else
+    git -C "$TREE" apply --reverse --check "$PATCH"
+fi
 export NDK=${UML_NDK:-$HOME/Android/Sdk/ndk/27.2.12479018}
 export API=34
 export JOBS=${JOBS:-12}

@@ -1,5 +1,36 @@
 # Release notes
 
+## 1.3.0 (version code 11) — Linux environment manager, Ubuntu, shared home, local DNS, 2026-11-04
+
+- Add a **Linux environments** screen (drawer). It lists every UML environment
+  with its system, user, memory, disk size and actual use, and whether it is
+  running. Create a Debian or Ubuntu environment, start it, change its memory
+  and home sharing, view its console log, add a one-tap connection profile, or
+  delete it. A running environment cannot be deleted. Creation and the guest
+  console run in terminal sessions and return to the screen when they finish.
+- Add an Ubuntu 26.04 LTS template (`uml-env create -t ubuntu ...`), built from
+  the official arm64 image pinned by digest, with the image's default `ubuntu`
+  account removed so the environment user gets UID 1000.
+- Share the app home (the Android shell's `~`) at `/data` inside environments,
+  on by default and switchable per environment
+  (`uml-env config NAME --share-home on|off`, or `--share-home` at creation).
+  Files appear owned by the environment user, so ordinary commands can use
+  them; changing their owner is refused.
+- Boot every environment through a small initramfs shim that mounts the disk,
+  adds `/data`, and hands over to the disk's own init. Existing environments get
+  the new features without being recreated.
+- Patch the UML kernel's hostfs with `uid=`/`gid=` mount options
+  (`patches/uml-hostfs-owner.patch`); the legacy path-only option is unchanged.
+- Resolve DNS through Android inside environments, so local network names
+  work (for example a router's DHCP host names, and `*.local` multicast DNS
+  names). Guests use the virtual nameserver `10.0.2.3`, which the network
+  launcher (`umnet`) answers itself with Android's resolver: it follows Wi-Fi,
+  mobile data, VPN and Private DNS changes while the guest runs. The boot shim
+  moves existing environments from the old `1.1.1.1` default; a nameserver you
+  set yourself is kept (`patches/uml-network-dns.patch`).
+- `uml-env` gains `delete NAME [--yes]` and a tab-separated `status` listing.
+- Remove bundled templates left behind by an app update.
+
 ## 1.2.0 (version code 10) — File manager and remote browser, 2026-11-03
 
 - Add a Files screen (drawer, overflow menu, and quick menu) for browsing the

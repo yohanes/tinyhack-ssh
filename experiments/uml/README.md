@@ -115,12 +115,25 @@ The kernel's vector `fd` transport exchanges Ethernet datagrams with `umnet`,
 which converts them to passt's length-prefixed stream format. Passt opens
 ordinary Android sockets for outbound traffic. No VPN, TUN device, root, or
 inbound port forwarding is needed. The guest uses `10.0.2.15/24`, gateway
-`10.0.2.2`, and DNS `1.1.1.1`. Set `UML_NETWORK=0` to boot offline.
+`10.0.2.2`, and DNS `10.0.2.3`. Set `UML_NETWORK=0` to boot offline.
+
+`10.0.2.3` is virtual: `umnet` answers UDP DNS sent there itself, without
+passt. It hands each query unchanged to Android's resolver
+(`android_res_nsend`), which uses whatever DNS the phone currently has (router,
+carrier, VPN or Private DNS) and its cache. A/AAAA queries for `*.local` go
+through `getaddrinfo` on a short-lived thread instead, because Android
+resolves multicast DNS names only there. Large answers are sent whole as IP
+fragments (Android already did any TCP retry upstream); TCP connections to
+`10.0.2.3` are reset at once. Each kind of resolver error is reported once on
+the console (`umnet: DNS lookup failed: ...`). Nothing listens on a host port,
+so other apps cannot use the forwarder. `umnet --no-dns-proxy --dns ADDR`
+turns it off and announces a real server instead.
 
 Passt is pinned to upstream commit `6aa4f88bd9846411edff3ed70460475b538addca`
 (2026-10-25) and built with Zig 0.17.0's musl target. Bionic's networking headers
 conflict with passt's definitions; static musl also avoids glibc's Android-
-blocked startup syscalls. `umnet` uses the pinned kernel source and static Bionic.
+blocked startup syscalls. `umnet` uses the pinned kernel source and is linked
+dynamically against Bionic and `libandroid` (for the resolver API).
 
 `patches/passt-uml-android.patch` is from
 [GlassOnTin/uml-transport at 21ef1403](https://github.com/GlassOnTin/uml-transport/tree/21ef1403aa41ac31f1f02e83718bd45ca560252c/passt),
@@ -135,6 +148,7 @@ at an exhausted NAPI budget. `patches/uml-network-cleanup.patch` is our adapter
 fix: a closed datagram socket does not reliably deliver POLLHUP, so the pump
 checks child exits and reaps both children. The original wrapper otherwise
 left passt alive and the kernel as a zombie after poweroff.
+`patches/uml-network-dns.patch`, applied on top of it, adds the DNS forwarder.
 
 The phone had an unavailable global proxy at `192.168.1.26:8877`. It was
 disabled with the user's approval. The final guest tests use direct sockets;
@@ -147,8 +161,9 @@ even for native curl; the public guest HTTP test instead uses Google's
 
 - IPv4 outbound networking is tested; IPv6, guest HTTPS, inbound forwarding,
   network switching, and sustained throughput are not tested. The minimal
-  BusyBox wget has no TLS support. DNS is currently fixed rather than inherited
-  from Android. This is not a full distribution networking setup.
+  BusyBox wget has no TLS support. DNS follows Android (see above); DNS over
+  TCP to the virtual nameserver is not offered. This is not a full
+  distribution networking setup.
 - The network wrapper produces a `winch_thread: TIOCSCTTY` diagnostic; basic
   interactive input works, but guest console resizing needs follow-up.
 - This device selects **ptrace mode** by default; seccomp mode is not tested.

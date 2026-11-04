@@ -66,12 +66,12 @@ The exact copyright notices and license texts are included in the APK under
 font names are used for upstream fonts; the patched JetBrains font is identified
 as a Nerd Font in both its embedded metadata and these notices.
 
-## UML Debian environments (1.1.0)
+## UML Debian and Ubuntu environments (1.1.0; Ubuntu added later)
 
 - ARM64 User-Mode Linux: Linux 7.2.0-rc4 port at
   `32e5e10b81d8882bdaf77b71e4106a941840c750` from
-  https://github.com/zalexdev/linux-um-arm64, with the tracked networking and
-  ELF-alignment patches. GPL-2.0; see `linux-uml.GPL-2.0`.
+  https://github.com/zalexdev/linux-um-arm64, with the tracked networking,
+  ELF-alignment and hostfs-owner patches. GPL-2.0; see `linux-uml.GPL-2.0`.
 - passt at `6aa4f88bd9846411edff3ed70460475b538addca`, GPL-2.0-or-later
   with per-file BSD terms; see `passt.GPL-2.0-or-later` and its source LICENSES.
   The UML networking adapter is part of the Linux port's source tree.
@@ -82,10 +82,18 @@ as a Nerd Font in both its embedded metadata and these notices.
   Its packages retain their copyright and license notices under
   `/usr/share/doc` inside the image. Exact Debian source packages and checksums
   are retained in the release's corresponding-source archive.
-- The template's static BusyBox 1.38.0 uses GNU libc from Ubuntu
+- Ubuntu 26.04 LTS ARM64 template, official image index digest
+  `sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c`.
+  Its packages retain their copyright and license notices under
+  `/usr/share/doc` inside the image. Exact Ubuntu source packages and checksums
+  are retained in the release's corresponding-source archive.
+- The UML boot shim (`assets/usr/share/uml/shim.cpio`) contains a separately
+  configured static BusyBox 1.38.0 (GPL-2.0) built from the same source; its
+  configuration is retained in the release archive.
+- The templates' static BusyBox 1.38.0 uses GNU libc from Ubuntu
   `2.43-2ubuntu2cross1` (cross-toolchain-base 80ubuntu3). BusyBox source,
   configuration, GNU libc source, and cross-toolchain source are retained in
   the release archive. GNU libc is LGPL-2.1-or-later; see its source COPYING.LIB.
 
 The UML port remains experimental. Guest package installation connects directly
-from the device to the user's configured Debian repositories.
+from the device to the user's configured Debian or Ubuntu repositories.

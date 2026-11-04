@@ -61,6 +61,12 @@
             android:theme="@style/Theme.TinyhackSSH.FileManager" />
 
         <activity
+            android:name=".uml.UmlEnvironmentsActivity"
+            android:exported="false"
+            android:label="Linux environments"
+            android:theme="@style/Theme.TinyhackSSH" />
+
+        <activity
             android:name=".files.RemoteBrowserActivity"
             android:exported="false"
             android:label="Server files"

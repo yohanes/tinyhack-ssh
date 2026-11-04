@@ -399,6 +399,13 @@ public class MainActivity extends AppCompatActivity implements TerminalSession.L
                 drawerLayout.closeDrawer(GravityCompat.START);
             });
         }
+        View btnLinuxDrawer = findViewById(R.id.btn_linux_drawer);
+        if (btnLinuxDrawer != null) {
+            btnLinuxDrawer.setOnClickListener(v -> {
+                startActivity(new Intent(this, com.tinyhack.ssh.uml.UmlEnvironmentsActivity.class));
+                drawerLayout.closeDrawer(GravityCompat.START);
+            });
+        }
         if (btnSshAgentDrawer != null) {
             btnSshAgentDrawer.setOnClickListener(v -> {
                 startActivity(new Intent(this, com.tinyhack.ssh.ssh.SshAgentActivity.class));

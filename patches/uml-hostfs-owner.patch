@@ -1,0 +1,110 @@
+diff --git a/fs/hostfs/hostfs_kern.c b/fs/hostfs/hostfs_kern.c
+index abe86d72d..1a9f1c6cc 100644
+--- a/fs/hostfs/hostfs_kern.c
++++ b/fs/hostfs/hostfs_kern.c
+@@ -25,6 +25,14 @@
+ 
+ struct hostfs_fs_info {
+ 	char *host_root_path;
++	/*
++	 * Optional owner reported for every inode (uid=/gid= mount options).
++	 * Host files belong to the single host account running UML; without
++	 * this, ordinary guest users fail generic_permission() on them.
++	 */
++	bool force_uid, force_gid;
++	kuid_t uid;
++	kgid_t gid;
+ };
+ 
+ struct hostfs_inode_info {
+@@ -499,9 +507,17 @@ static const struct address_space_operations hostfs_aops = {
+ 
+ static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)
+ {
++	struct hostfs_fs_info *fsi = ino->i_sb->s_fs_info;
++
+ 	set_nlink(ino, st->nlink);
+-	i_uid_write(ino, st->uid);
+-	i_gid_write(ino, st->gid);
++	if (fsi->force_uid)
++		ino->i_uid = fsi->uid;
++	else
++		i_uid_write(ino, st->uid);
++	if (fsi->force_gid)
++		ino->i_gid = fsi->gid;
++	else
++		i_gid_write(ino, st->gid);
+ 	inode_set_atime_to_ts(ino, (struct timespec64){
+ 			st->atime.tv_sec,
+ 			st->atime.tv_nsec,
+@@ -805,6 +821,7 @@ static int hostfs_setattr(struct mnt_idmap *idmap,
+ 			  struct dentry *dentry, struct iattr *attr)
+ {
+ 	struct inode *inode = d_inode(dentry);
++	struct hostfs_fs_info *fsi = inode->i_sb->s_fs_info;
+ 	struct hostfs_iattr attrs;
+ 	char *name;
+ 	int err;
+@@ -815,6 +832,18 @@ static int hostfs_setattr(struct mnt_idmap *idmap,
+ 	if (err)
+ 		return err;
+ 
++	/* A forced owner cannot change; accept no-op chown (cp -a, tar). */
++	if (fsi->force_uid && (attr->ia_valid & ATTR_UID)) {
++		if (!uid_eq(attr->ia_uid, fsi->uid))
++			return -EPERM;
++		attr->ia_valid &= ~ATTR_UID;
++	}
++	if (fsi->force_gid && (attr->ia_valid & ATTR_GID)) {
++		if (!gid_eq(attr->ia_gid, fsi->gid))
++			return -EPERM;
++		attr->ia_valid &= ~ATTR_GID;
++	}
++
+ 	if (append)
+ 		attr->ia_valid &= ~ATTR_SIZE;
+ 
+@@ -968,10 +997,14 @@ static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
+ 
+ enum hostfs_parma {
+ 	Opt_hostfs,
++	Opt_uid,
++	Opt_gid,
+ };
+ 
+ static const struct fs_parameter_spec hostfs_param_specs[] = {
+ 	fsparam_string_empty("hostfs",		Opt_hostfs),
++	fsparam_uid("uid",			Opt_uid),
++	fsparam_gid("gid",			Opt_gid),
+ 	{}
+ };
+ 
+@@ -998,6 +1031,14 @@ static int hostfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+ 		kfree(fsi->host_root_path);
+ 		fsi->host_root_path = tmp_root;
+ 		break;
++	case Opt_uid:
++		fsi->uid = result.uid;
++		fsi->force_uid = true;
++		break;
++	case Opt_gid:
++		fsi->gid = result.gid;
++		fsi->force_gid = true;
++		break;
+ 	}
+ 
+ 	return 0;
+@@ -1012,6 +1053,13 @@ static int hostfs_parse_monolithic(struct fs_context *fc, void *data)
+ 	if (host_root == NULL)
+ 		return 0;
+ 
++	/*
++	 * Legacy form: the whole option string is the host path. A string
++	 * starting with "hostfs=" is an option list: hostfs=PATH,uid=N,gid=N.
++	 */
++	if (!strncmp(host_root, "hostfs=", 7))
++		return generic_parse_monolithic(fc, data);
++
+ 	tmp_root = kasprintf(GFP_KERNEL, "%s%s", fsi->host_root_path, host_root);
+ 	if (!tmp_root)
+ 		return -ENOMEM;
