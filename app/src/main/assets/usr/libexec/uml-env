@@ -4,6 +4,12 @@ umask 077
 BASE="$HOME/uml"
 ENVS="$BASE/envs"
 SHARE="$HOME/../usr/share/uml"
+CACHE="$BASE/cache"
+CA_BUNDLE="$HOME/../usr/etc/ssl/certs/ca-certificates.crt"
+# Templates are published as GitHub release assets, one release per build
+# (scripts/publish-uml-template.sh). UML_TEMPLATE_URL replaces the base URL,
+# for a mirror or a local test server laid out the same way (TAG/FILE).
+TEMPLATE_URL=${UML_TEMPLATE_URL:-https://github.com/yohanes/tinyhack-ssh/releases/download}
 NATIVE=$(dirname "$(readlink /proc/$$/exe)")
 memory=
 share_home=
@@ -15,18 +21,54 @@ usage() {
     echo 'uml-env delete NAME [--yes]'
     echo 'uml-env list'
     echo 'uml-env status'
-    echo 'Sizes: 512M or larger, e.g. 1024M, 4G. Creation needs internet access.'
+    echo 'Sizes: 512M or larger, e.g. 1024M, 4G. Creation needs internet access;'
+    echo 'the first one of each type downloads its system image (35-45 MB).'
     echo 'Memory: 256M through 64G; default 512M. Config changes apply on next start.'
     echo 'Share home: the app home folder appears at /data inside the guest (default on).'
 }
 valid_name() { [[ $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,47}$ ]]; }
-# Bundled templates are content-addressed; the build script prints each name.
-bundled_template() {
+# Pinned templates: file name, SHA-256, size in bytes. File names are
+# content-addressed; scripts/build-uml-env-template.sh prints a new entry and
+# scripts/publish-uml-template.sh publishes the file these lines name.
+template_info() {
     case "$1" in
-        debian) printf '%s' "$SHARE/debian-05a1e473306ab6ed.ext4.gzip" ;;
-        ubuntu) printf '%s' "$SHARE/ubuntu-22cc56fb8a542318.ext4.gzip" ;;
+        debian) echo 'debian-05a1e473306ab6ed.ext4.gzip 05a1e473306ab6ed65c56134e39e6f1124e01cf93adc6f9df6673ba0a337e8e8 33518941' ;;
+        ubuntu) echo 'ubuntu-22cc56fb8a542318.ext4.gzip 22cc56fb8a542318a4312d65e93ce75868e711386ab28020f183d9eea53467b7 41807600' ;;
         *) return 1 ;;
     esac
+}
+file_size() {
+    local size
+    read -r _ _ _ _ size _ < <(ls -ln "$1" 2>/dev/null) || size=0
+    printf '%s' "${size:-0}"
+}
+# Download the pinned template into the cache once and verify it; sets
+# $template. A partial download resumes on the next attempt.
+fetch_template() {
+    local file sum size part have old url
+    read -r file sum size < <(template_info "$1")
+    template="$CACHE/$file"
+    [[ -f "$template" ]] && return 0
+    mkdir -p "$CACHE"
+    for old in "$CACHE/$1"-*.ext4.gzip "$CACHE/$1"-*.ext4.gzip.partial; do
+        [[ -e "$old" && $old != "$template" && $old != "$template.partial" ]] && rm -f "$old"
+    done
+    part="$template.partial"
+    have=$(file_size "$part")
+    (( have <= size )) || { rm -f "$part"; have=0; }
+    if (( have < size )); then
+        url="$TEMPLATE_URL/uml-template-${file%.ext4.gzip}/$file"
+        echo "Downloading the $label system image ($(( (size + 524287) / 1048576 )) MB) from $url"
+        "$NATIVE/libcurl.so" --fail --location --retry 3 --cacert "$CA_BUNDLE" \
+            --continue-at - --output "$part" "$url" ||
+            fail 'Download failed. Check the internet connection and try again; it resumes where it stopped.'
+    fi
+    read -r have _ < <(sha256sum "$part")
+    if [[ $have != "$sum" ]]; then
+        rm -f "$part"
+        fail "The downloaded $label system image does not match its checksum; try again."
+    fi
+    mv -f "$part" "$template"
 }
 type_label() {
     case "$1" in debian) echo Debian ;; ubuntu) echo Ubuntu ;; *) echo "$1" ;; esac
@@ -127,7 +169,7 @@ status)
         size=0 used=0
         if [[ -f "$dir/disk.ext4" ]]; then
             # Logical size from ls (no stat applet); du counts allocated blocks.
-            read -r _ _ _ _ size _ < <(ls -ln "$dir/disk.ext4" 2>/dev/null) || size=0
+            size=$(file_size "$dir/disk.ext4")
             read -r used _ < <(du -k "$dir/disk.ext4" 2>/dev/null) || used=0
         fi
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$name" "$state" "$type" "$user" "$mem" \
@@ -146,7 +188,7 @@ create)
         esac
         shift 2
     done
-    bundled_template "$type" >/dev/null || fail "Unsupported image type: $type (use debian or ubuntu)"
+    template_info "$type" >/dev/null || fail "Unsupported image type: $type (use debian or ubuntu)"
     valid_name "$name" || fail 'Use a name of 1–48 letters, digits, underscores or hyphens, starting with a letter or digit.'
     [[ $user =~ ^[a-z][a-z0-9_-]{0,30}$ && $user != root ]] || fail 'Use a non-root Linux username (lowercase letters, digits, underscores or hyphens).'
     [[ $size =~ ^([1-9][0-9]{0,5})([MG])$ ]] || fail 'Size must be an integer followed by M or G.'
@@ -154,13 +196,14 @@ create)
     [[ ${BASH_REMATCH[2]} == M ]] || mb=$((mb * 1024))
     (( mb >= 512 && mb <= 1048576 )) || fail 'Disk size must be between 512M and 1024G.'
     label=$(type_label "$type")
-    template="$BASE/templates/$type.ext4.gz"
-    [[ -f "$template" ]] || template=$(bundled_template "$type")
-    [[ -f "$template" ]] || fail "$label template missing. Restart the app to finish installing its bundled files."
     [[ -f "$NATIVE/libuml.so" ]] || fail 'This app build does not include UML.'
     [[ -f "$NATIVE/libuml-sparse-image.so" ]] || fail 'Update the app to install the sparse image utility.'
     mkdir -p "$ENVS"
     DIR="$ENVS/$name"
+    [[ ! -e "$DIR" ]] || fail "Environment already exists: $name"
+    # A template placed in ~/uml/templates by hand takes precedence.
+    template="$BASE/templates/$type.ext4.gz"
+    [[ -f "$template" ]] || fetch_template "$type"
     resolve_memory
     mkdir "$DIR" 2>/dev/null || fail "Environment already exists: $name"
     printf '%s\n' "$memory" > "$DIR/memory"

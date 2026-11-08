@@ -16,6 +16,14 @@
   libghostty path the app uses (keys, Kitty keyboard, mouse, bracketed paste,
   formatter, selection, hyperlinks, scrolling, synchronized output, OSC 99,
   rendering).
+- Download the Debian and Ubuntu system images instead of bundling them, which
+  shrinks the app by about 75 MB. The first environment of each system downloads
+  its image (35–45 MB) from the project's GitHub releases, checks it against a
+  SHA-256 pinned in `uml-env`, and keeps it in `~/uml/cache/` for later ones. An
+  interrupted download resumes; a corrupt one is discarded. The templates bundled
+  by earlier versions are removed after the update. Each template release
+  carries the image's corresponding source
+  (`scripts/publish-uml-template.sh` publishes and checks them).
 - List the third-party code linked into libghostty-vt in the notices and the
   About screen: Highway 1.2.0, simdutf 9.0.0, uucode 0.2.0 (with Unicode data
   and Bjoern Hoehrmann's UTF-8 decoder), Wuffs 0.4.0-alpha.10, and translate-c

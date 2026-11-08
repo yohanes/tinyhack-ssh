@@ -83,16 +83,21 @@ as a Nerd Font in both its embedded metadata and these notices.
   The UML networking adapter is part of the Linux port's source tree.
 - musl libc linked into passt: see `musl.COPYRIGHT`; corresponding musl source
   is included in the release source archive.
+- The Debian and Ubuntu templates are not part of the APK. The app downloads
+  them when it creates an environment, from GitHub releases tagged
+  `uml-template-TYPE-HASH` at https://github.com/yohanes/tinyhack-ssh/releases.
+  Each such release also carries that image's corresponding source
+  (`NAME-source.tar`), and the app's corresponding-source archive includes it too.
 - Debian 13 ARM64 slim template, official image index digest
   `sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4`.
   Its packages retain their copyright and license notices under
   `/usr/share/doc` inside the image. Exact Debian source packages and checksums
-  are retained in the release's corresponding-source archive.
+  are retained with the template and in the corresponding-source archive.
 - Ubuntu 26.04 LTS ARM64 template, official image index digest
   `sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c`.
   Its packages retain their copyright and license notices under
   `/usr/share/doc` inside the image. Exact Ubuntu source packages and checksums
-  are retained in the release's corresponding-source archive.
+  are retained with the template and in the corresponding-source archive.
 - The UML boot shim (`assets/usr/share/uml/shim.cpio`) contains a separately
   configured static BusyBox 1.38.0 (GPL-2.0) built from the same source; its
   configuration is retained in the release archive.

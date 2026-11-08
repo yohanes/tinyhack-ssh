@@ -295,9 +295,9 @@ public class BootstrapInstaller {
     }
 
     /**
-     * Templates are content-addressed, so an app update leaves the previous
-     * ones behind (tens of MB each). They are only read while creating an
-     * environment; a creation in progress keeps its open file after deletion.
+     * Versions up to 1.3.0 bundled the UML templates here (tens of MB each);
+     * uml-env now downloads them into ~/uml/cache, so remove any left behind.
+     * A creation in progress keeps its open file after deletion.
      */
     private static void removeStaleTemplates(File dir, String[] current) {
         java.util.Set<String> keep = new java.util.HashSet<>(java.util.Arrays.asList(current));
@@ -312,20 +312,6 @@ public class BootstrapInstaller {
     }
 
     private static void copyAssetFile(Context context, String assetPath, File targetFile) throws IOException {
-        // Templates are immutable and content-addressed; avoid copying 32 MB on
-        // every activity restart. A partial copy never gets its final name.
-        if (assetPath.startsWith("usr/share/uml/") && assetPath.endsWith(".ext4.gzip")) {
-            if (targetFile.isFile()) return;
-            File temporary = new File(targetFile.getPath() + ".partial");
-            try (InputStream in = context.getAssets().open(assetPath);
-                 OutputStream out = new FileOutputStream(temporary)) {
-                byte[] buffer = new byte[65536];
-                int read;
-                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-            }
-            if (!temporary.renameTo(targetFile)) throw new IOException("Cannot install UML template");
-            return;
-        }
         try (InputStream in = context.getAssets().open(assetPath);
              OutputStream out = new FileOutputStream(targetFile)) {
             byte[] buffer = new byte[8192];

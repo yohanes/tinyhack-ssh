@@ -40,8 +40,10 @@ Tinyhack SSH is an independent, unofficial Android port. It uses the open-source
     **Linux environments** screen or with `uml-env create -t ubuntu -n devenv -d 4G -u user`
     and `uml-env start devenv`. The app home appears at `/data` inside the guest
     (per-environment option). Choose an environment in a LOCAL profile for
-    one-tap launch. The kernel and templates are bundled; initial creation needs
-    internet. See [UML environment usage](experiments/uml/ENVIRONMENTS.md).
+    one-tap launch. The kernel is bundled; the first environment of each system
+    downloads its image (35–45 MB, checked against a pinned SHA-256) from this
+    project's GitHub releases, and creation needs internet. See
+    [UML environment usage](experiments/uml/ENVIRONMENTS.md).
   - Drawer-based session list: switch, rename (long-press), close.
   - Connection profiles (LOCAL / SSH / MOSH) with host, port, username, key, shell, cwd, env, and extra args (ssh or mosh, e.g. `--predict=always`); one-tap connect into a new session.
   - SSH agent forwarding, Kitty graphics, OSC 52 clipboard writes, and OSC 99 notifications are separate per-profile opt-ins and default off.

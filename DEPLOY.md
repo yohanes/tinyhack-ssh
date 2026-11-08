@@ -140,12 +140,17 @@ Do not continue if any native file reports `0x1000`, `0x2000`, or `FAIL`.
 UML now ships in both distributions. Rebuild it with
 `scripts/build-uml-kernel.sh`, `scripts/build-uml-network.sh`,
 `scripts/build-uml-shim.sh`, and `scripts/package-uml-runtime.sh` (NDK r27c for
-UML; override with `UML_NDK`). Retain the pinned Debian and Ubuntu templates and
-`shim.cpio` in `app/src/main/assets/usr/share/uml/`.
-The `.gzip` suffix is intentional: Android expands `.gz` assets automatically.
+UML; override with `UML_NDK`). Keep `shim.cpio` in
+`app/src/main/assets/usr/share/uml/`. The Debian and Ubuntu templates are not in
+the APK: `uml-env` downloads the files pinned in its `template_info()` from
+GitHub releases. After rebuilding a template with
+`scripts/build-uml-env-template.sh TYPE`, pin the entry it prints.
 Run `uv run scripts/fetch-debian-template-sources.py debian` and `... ubuntu`,
-and retain the exact glibc/cross-toolchain sources, before generating the
-corresponding-source archive.
+and retain the exact glibc/cross-toolchain sources, before publishing a template
+or generating the corresponding-source archive.
+Publish each pinned template that has no release yet (section 7) before testing,
+or test against a local copy with `UML_TEMPLATE_URL` (see
+`experiments/uml/ENVIRONMENTS.md`).
 In the app's **Linux environments** screen, create one Debian and one Ubuntu
 environment with no manually installed template, start each, and check sudo,
 APT, `/data` (the app home, owned by the environment user), sparse allocation,
@@ -318,6 +323,24 @@ release/tinyhack-ssh-1.3.0-source.tar.xz.sha256
 
 Keep the written source offer at `tinyhack-ssh@tinyhack.com` working. Do not publish
 an APK/AAB without also retaining its exact corresponding source.
+
+### UML templates
+
+The app downloads its Debian and Ubuntu templates from GitHub releases tagged
+`uml-template-TYPE-HASH`, one per template build. Publish any pinned template
+that has no release yet, then check that every pinned file downloads:
+
+```bash
+scripts/publish-uml-template.sh all          # skips templates already published
+scripts/publish-uml-template.sh --check all  # must print ok for both
+```
+
+Each template release carries the image, `SHA256SUMS`, and the image's
+corresponding source (`NAME-source.tar`: distribution source packages, the
+BusyBox source and configuration, GNU libc sources, and the build scripts).
+The releases are not marked latest. Never edit or delete one: released app
+versions download the file they pin for as long as they are offered. A new
+template gets a new release.
 
 ## 8. Publish the website first
 

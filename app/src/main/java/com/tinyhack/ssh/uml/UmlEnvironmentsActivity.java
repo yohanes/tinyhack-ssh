@@ -315,7 +315,7 @@ public class UmlEnvironmentsActivity extends AppCompatActivity {
         SwitchCompat share = shareSwitch(layout, true);
 
         TextView note = new TextView(this);
-        note.setText("Creation downloads sudo and a few tools, so it needs internet access. It takes a minute or two.");
+        note.setText("Creation needs internet access. The first environment of each system downloads its image (35–45 MB), then sudo and a few tools; it takes a few minutes.");
         note.setTextSize(12);
         note.setPadding(0, dp(12), 0, 0);
         layout.addView(note);

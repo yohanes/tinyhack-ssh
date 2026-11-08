@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build a compressed environment template: scripts/build-uml-env-template.sh [debian|ubuntu]
-# The result is build/uml/env-template/TYPE.ext4.gz; with --install it is also
-# copied into the app assets under its content-addressed name (update the
-# matching entry in bundled_template() in assets/usr/libexec/uml-env).
+# The result is build/uml/env-template/TYPE.ext4.gz. The app does not bundle
+# templates: pin the printed entry in template_info() in
+# app/src/main/assets/usr/libexec/uml-env, then publish the file with
+# scripts/publish-uml-template.sh TYPE.
 set -euo pipefail
 PROJECT=$(cd "$(dirname "$0")/.." >/dev/null && pwd)
 TYPE=${1:-debian}
-INSTALL=${2:-}
 WORK="$PROJECT/build/uml/env-template"
 mkdir -p "$WORK"
 # The static BusyBox comes from the Debian rootfs builder.
@@ -41,10 +41,8 @@ REMOVE_USERS=$REMOVE fakeroot bash "$PROJECT/experiments/uml/debian/make-image.s
 e2fsck -fn "$WORK/$TYPE.ext4"
 gzip -1 -c "$WORK/$TYPE.ext4" > "$WORK/$TYPE.ext4.gz"
 (cd "$WORK" && sha256sum "$TYPE.ext4.gz" > "SHA256SUMS.$TYPE")
-SUM=$(cut -c1-16 "$WORK/SHA256SUMS.$TYPE")
-echo "Template: $WORK/$TYPE.ext4.gz ($TYPE-$SUM.ext4.gzip)"
-if [[ $INSTALL == --install ]]; then
-    DEST="$PROJECT/app/src/main/assets/usr/share/uml"
-    cp "$WORK/$TYPE.ext4.gz" "$DEST/$TYPE-$SUM.ext4.gzip"
-    echo "Installed $DEST/$TYPE-$SUM.ext4.gzip"
-fi
+SUM=$(cut -d' ' -f1 "$WORK/SHA256SUMS.$TYPE")
+SIZE=$(stat -c %s "$WORK/$TYPE.ext4.gz")
+echo "Template: $WORK/$TYPE.ext4.gz"
+echo "template_info() entry for uml-env:"
+echo "        $TYPE) echo '$TYPE-${SUM:0:16}.ext4.gzip $SUM $SIZE' ;;"

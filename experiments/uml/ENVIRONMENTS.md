@@ -8,9 +8,12 @@ screen in the drawer manages the same environments without typing commands.
 
 ## Install
 
-Install Tinyhack SSH and open a Local Shell. The UML kernel and compressed
-Debian 13 and Ubuntu 26.04 LTS templates are bundled in the app; ADB and a
-separate template download are not required. UML remains an experimental feature.
+Install Tinyhack SSH and open a Local Shell. The UML kernel is bundled in the
+app. The compressed Debian 13 and Ubuntu 26.04 LTS templates are published as
+GitHub release assets (`uml-template-TYPE-HASH`); `uml-env create` downloads
+the one it needs the first time, checks it against the SHA-256 pinned in
+`uml-env`, and keeps it in `~/uml/cache/`. ADB is not required. UML remains an
+experimental feature.
 
 ## Rebuild from source
 
@@ -20,7 +23,7 @@ Build the UML kernel/network helpers and experimental app as described in
 ```sh
 scripts/build-uml-shim.sh                      # boot shim (after the kernel)
 scripts/build-uml-env-template.sh              # Debian template
-scripts/build-uml-env-template.sh ubuntu --install
+scripts/build-uml-env-template.sh ubuntu
 scripts/package-uml-debug.sh
 adb install -r build/uml/tinyhack-uml-debug.apk
 scripts/install-uml-env.sh
@@ -29,11 +32,16 @@ scripts/install-uml-env.sh
 The Debian template builder reuses the pinned Debian export and static BusyBox
 from `scripts/build-uml-debian.sh`, invoking that builder if they are missing.
 The Ubuntu template is exported from the official arm64 `ubuntu` image pinned by
-digest (Docker required). `--install` copies a template into the app assets
-under its content-addressed name; update the matching entry in
-`bundled_template()` in `assets/usr/libexec/uml-env`. Retain exact source
-packages with `uv run scripts/fetch-debian-template-sources.py [debian|ubuntu]`.
-The template is a compressed 256 MB ext4 filesystem (about 32 MB compressed);
+digest (Docker required). The builder prints the template's `template_info()`
+entry (content-addressed file name, SHA-256, size); pin it in
+`assets/usr/libexec/uml-env`. Retain exact source packages with
+`uv run scripts/fetch-debian-template-sources.py [debian|ubuntu]`, then publish
+the pinned files with `scripts/publish-uml-template.sh TYPE` (see DEPLOY.md).
+Before publishing, test against a local copy: `scripts/publish-uml-template.sh
+--stage all` lays out `build/uml/publish/` like the release downloads; serve it
+with an HTTP server that supports range requests and run `uml-env create` with
+`UML_TEMPLATE_URL=http://HOST:PORT`.
+The template is a compressed 256 MB ext4 filesystem (32–40 MB compressed);
 it is distinct from the
 4 GB standalone Debian image. Installing a template never replaces an existing
 environment. Open a new Local Shell after updating the app.
@@ -188,7 +196,8 @@ profile export/import. Create environments before opening the profile editor.
 ## Storage and troubleshooting
 
 Environments live in `~/uml/envs/NAME/`: `disk.ext4`, `user`, `type`, `ready`,
-`memory`, `share-home`, `console.log`, `run.lock`, and `tmp/`. Templates live in `~/uml/templates/`.
+`memory`, `share-home`, `console.log`, `run.lock`, and `tmp/`. Downloaded templates live in
+`~/uml/cache/`; delete them to free space (the next creation downloads again).
 Back up a disk only after shutting down its guest. Reusing a name is rejected
 so an existing disk cannot be overwritten by `create`.
 
@@ -198,11 +207,12 @@ create with a new name. Remove it with `uml-env delete NAME` (or the screen's
 Delete), which refuses while the guest runs. Never delete or replace a running
 guest's disk by hand.
 
-The bundled templates live under `~/../usr/share/uml/` with content-addressed
-filenames; the app removes ones left behind by an update. An explicitly
-installed `~/uml/templates/TYPE.ext4.gz` (for example `debian.ext4.gz`) takes
-precedence for development. The `.gzip` suffix prevents Android's asset packager
-from automatically expanding the compressed image.
+Downloaded templates have content-addressed filenames; a template update
+removes the cached older version of that type when it downloads the new one,
+and an interrupted download resumes on the next attempt. Versions up to 1.3.0
+bundled the templates in `~/../usr/share/uml/`; the app removes those after an
+update. An explicitly installed `~/uml/templates/TYPE.ext4.gz` (for example
+`debian.ext4.gz`) takes precedence for development.
 
 The interactive command is a Bash function that invokes a script through the
 bundled interpreter, as required by Android's executable-file restrictions.
