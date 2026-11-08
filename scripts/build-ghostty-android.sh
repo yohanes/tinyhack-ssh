@@ -2,10 +2,12 @@
 set -euo pipefail
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null && pwd)
 SOURCE=${GHOSTTY_SOURCE_DIR:-"$PROJECT_DIR/ghostty"}
-GHOSTTY_COMMIT=83fb95624b0439ee660c2679b43b38c8b63769cd # v1.4.0
-ZIG=${ZIG:-zig}
+GHOSTTY_TAG=vt-1.0.0 # libghostty-vt 1.0.0
+GHOSTTY_COMMIT=0fa3d577a5614150ff8e2c152de5fb9d5c6d2dec
+# libghostty-vt 1.0.0 requires Zig 0.17.x (see minimum_zig_version).
+ZIG=${GHOSTTY_ZIG:-$PROJECT_DIR/build/toolchains/zig-x86_64-linux-0.17.0/zig}
 if [[ ! -d "$SOURCE" ]]; then
-    git clone --branch v1.4.0 https://github.com/ghostty-org/ghostty.git "$SOURCE"
+    git clone --branch "$GHOSTTY_TAG" https://github.com/ghostty-org/ghostty.git "$SOURCE"
 fi
 if [[ -e "$SOURCE/.git" ]]; then
     source_commit=$(git -C "$SOURCE" rev-parse HEAD)
@@ -13,7 +15,7 @@ else
     source_commit=$(cat "$SOURCE/.tinyhack-source-commit")
 fi
 [[ "$source_commit" == "$GHOSTTY_COMMIT" ]] || {
-    echo "Expected Ghostty v1.4.0 at $GHOSTTY_COMMIT in $SOURCE" >&2
+    echo "Expected libghostty-vt $GHOSTTY_TAG at $GHOSTTY_COMMIT in $SOURCE" >&2
     exit 1
 }
 NDK_DIR=${TINYHACK_SSH_NDK_DIR:-/home/yohanes/Android/Sdk/ndk/26.1.10909125}

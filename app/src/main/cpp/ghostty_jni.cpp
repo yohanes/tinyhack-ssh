@@ -660,21 +660,21 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeScroll(
     memset(&vp, 0, sizeof(vp));
     switch (type) {
         case 0: // TOP
-            vp.tag = GHOSTTY_SCROLL_VIEWPORT_TOP;
+            vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_TOP;
             break;
         case 1: // BOTTOM
-            vp.tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM;
+            vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_BOTTOM;
             break;
         case 2: // DELTA
-            vp.tag = GHOSTTY_SCROLL_VIEWPORT_DELTA;
+            vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_DELTA;
             vp.value.delta = deltaOrRow;
             break;
         case 3: // ROW
-            vp.tag = GHOSTTY_SCROLL_VIEWPORT_ROW;
+            vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_ROW;
             vp.value.row = static_cast<size_t>(deltaOrRow >= 0 ? deltaOrRow : 0);
             break;
         default:
-            vp.tag = GHOSTTY_SCROLL_VIEWPORT_BOTTOM;
+            vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_BOTTOM;
             break;
     }
     ghostty_terminal_scroll_viewport(session->terminal, vp);
@@ -733,16 +733,21 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWriteKey(
     }
 
     if (session->key_encoder && session->key_event && session->terminal) {
-        ghostty_key_encoder_setopt_from_terminal(session->key_encoder, session->terminal);
+        ghostty_key_encoder_set_from_terminal(session->key_encoder, session->terminal);
 
         ghostty_key_event_set_key(session->key_event, static_cast<GhosttyKey>(ghosttyKey));
         ghostty_key_event_set_action(session->key_event, static_cast<GhosttyKeyAction>(action));
         ghostty_key_event_set_mods(session->key_event, static_cast<GhosttyMods>(mods));
-        ghostty_key_event_set_utf8(session->key_event, utf8_text, utf8_len);
+        // The event borrows the text; it is cleared again after encoding,
+        // before utf8_text is released.
+        GhosttyString utf8 = {reinterpret_cast<const uint8_t*>(utf8_text),
+                              utf8_text ? static_cast<size_t>(utf8_len) : 0};
+        ghostty_key_event_set_utf8(session->key_event, utf8);
 
-        char buf[128];
+        uint8_t buf[128];
         size_t written = 0;
         GhosttyResult res = ghostty_key_encoder_encode(session->key_encoder, session->key_event, buf, sizeof(buf), &written);
+        ghostty_key_event_set_utf8(session->key_event, GhosttyString{});
 
         if (res == GHOSTTY_SUCCESS && written > 0) {
             write(session->ptm_fd, buf, written);
@@ -776,10 +781,18 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWritePaste(
     std::lock_guard<std::mutex> lock(session->session_mutex);
     GhosttyTerminalModeConfig mode{GHOSTTY_MODE_BRACKETED_PASTE, false};
     ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_MODE, &mode);
-    std::vector<char> encoded(len + 12); // bracketed paste prefix and suffix
+    std::vector<uint8_t> encoded(len + 12); // bracketed paste prefix and suffix
     size_t written = 0;
-    if (ghostty_paste_encode(text.data(), len, mode.value, encoded.data(),
-                            encoded.size(), &written) == GHOSTTY_SUCCESS) {
+    GhosttyResult res = ghostty_paste_encode(text.data(), len, mode.value, encoded.data(),
+                                             encoded.size(), &written);
+    if (res == GHOSTTY_OUT_OF_SPACE && written > encoded.size()) {
+        // The encoder reports the size it needs; encoding the (already
+        // sanitized) data again gives the same result.
+        encoded.resize(written);
+        res = ghostty_paste_encode(text.data(), len, mode.value, encoded.data(),
+                                   encoded.size(), &written);
+    }
+    if (res == GHOSTTY_SUCCESS) {
         size_t offset = 0;
         while (offset < written) {
             const ssize_t count = write(session->ptm_fd, encoded.data() + offset, written - offset);
@@ -996,17 +1009,15 @@ static void update_kitty_graphics(JNIEnv* env, NativeSession* session, jobject j
 
         uint32_t width = 0, height = 0;
         uint64_t generation = 0;
-        size_t data_len = 0;
-        const uint8_t* data = nullptr;
+        GhosttyString pixels = {};
         GhosttyKittyImageFormat format = GHOSTTY_KITTY_IMAGE_FORMAT_RGBA;
-        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_IMAGE_DATA_WIDTH, &width);
-        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_IMAGE_DATA_HEIGHT, &height);
-        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_IMAGE_DATA_FORMAT, &format);
-        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_IMAGE_DATA_DATA_LEN, &data_len);
-        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_IMAGE_DATA_GENERATION, &generation);
+        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_GRAPHICS_IMAGE_DATA_WIDTH, &width);
+        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_GRAPHICS_IMAGE_DATA_HEIGHT, &height);
+        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_GRAPHICS_IMAGE_DATA_FORMAT, &format);
+        ghostty_kitty_graphics_image_get(image, GHOSTTY_KITTY_GRAPHICS_IMAGE_DATA_GENERATION, &generation);
         if (ghostty_kitty_graphics_image_get(
-                image, GHOSTTY_KITTY_IMAGE_DATA_DATA_PTR, &data) != GHOSTTY_SUCCESS ||
-            !data || width == 0 || height == 0) {
+                image, GHOSTTY_KITTY_GRAPHICS_IMAGE_DATA_PIXELS, &pixels) != GHOSTTY_SUCCESS ||
+            !pixels.ptr || width == 0 || height == 0) {
             // A streamed image is visible in placement metadata before its
             // final chunk has arrived. Keep drawing the previous complete
             // frame instead of flashing to black between every update.
@@ -1021,7 +1032,7 @@ static void update_kitty_graphics(JNIEnv* env, NativeSession* session, jobject j
         }
         if (cache->generation != generation) {
             if (!copy_kitty_pixels_to_bitmap(
-                    env, cache->bitmap, data, data_len, width, height, format)) {
+                    env, cache->bitmap, pixels.ptr, pixels.len, width, height, format)) {
                 incomplete_frame = true;
                 continue;
             }
@@ -1098,7 +1109,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeUpdateRender(
     // Synchronized Output (DEC 2026): suspend rendering while mode is active
     {
         GhosttyTerminalModeConfig cfg = {};
-        cfg.mode = GHOSTTY_MODE_SYNC_OUTPUT;
+        cfg.mode = GHOSTTY_MODE_SYNCHRONIZED_OUTPUT;
         GhosttyResult modeRes = ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_MODE, &cfg);
         if (modeRes == GHOSTTY_SUCCESS && cfg.value) {
             return JNI_FALSE;
@@ -1124,7 +1135,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeUpdateRender(
         ghostty_render_state_get(session->render_state, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_Y, &cy);
     }
 
-    GhosttyRenderStateCursorVisualStyle cstyle = GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BLOCK;
+    GhosttyCursorStyle cstyle = GHOSTTY_CURSOR_STYLE_BLOCK;
     ghostty_render_state_get(session->render_state, GHOSTTY_RENDER_STATE_DATA_CURSOR_VISUAL_STYLE, &cstyle);
 
     bool cvisible = true, cblink = false;
@@ -1230,9 +1241,14 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeUpdateRender(
                     ghostty_render_state_row_cells_get(session->row_cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_LEN, &graphemes_len);
                     uint32_t cp = ' ';
                     if (graphemes_len > 0) {
-                        uint32_t buf[4];
-                        if (ghostty_render_state_row_cells_get(session->row_cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_BUF, buf) == GHOSTTY_SUCCESS) {
-                            cp = buf[0];
+                        // Only the base codepoint is drawn; OUT_OF_SPACE still
+                        // fills the buffer, so a cap of 1 is enough.
+                        uint32_t base = 0;
+                        GhosttyCodepointBuffer graphemes = {&base, 1, 0};
+                        GhosttyResult gres = ghostty_render_state_row_cells_get(
+                            session->row_cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_BUF, &graphemes);
+                        if ((gres == GHOSTTY_SUCCESS || gres == GHOSTTY_OUT_OF_SPACE) && graphemes.len > 0) {
+                            cp = base;
                         }
                     }
                     charsPtr[idx] = (cp <= 0xFFFF) ? static_cast<jchar>(cp) : static_cast<jchar>('?');
@@ -1255,17 +1271,20 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeUpdateRender(
                     bool has_style = false;
                     ghostty_render_state_row_cells_get(session->row_cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_HAS_STYLING, &has_style);
                     if (has_style) {
-                        GhosttyStyle st = GHOSTTY_INIT_SIZED(GhosttyStyle);
+                        GhosttyStyle st;
+                        ghostty_style_default(&st);
                         ghostty_render_state_row_cells_get(session->row_cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_STYLE, &st);
-                        if (st.bold) flags |= (1 << 0);
-                        if (st.italic) flags |= (1 << 1);
-                        if (st.underline != 0) flags |= (1 << 2);
-                        if (st.strikethrough) flags |= (1 << 3);
-                        if (st.faint) flags |= (1 << 4);
-                        if (st.inverse) flags |= (1 << 5);
-                        if (st.blink) flags |= (1 << 6);
-                        if (st.invisible) flags |= (1 << 7);
-                        ulStyle = st.underline;
+                        // Java's flag bits differ from GhosttyStyleFlags; map them.
+                        const int underline = GHOSTTY_STYLE_UNDERLINE(st);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_BOLD) flags |= (1 << 0);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_ITALIC) flags |= (1 << 1);
+                        if (underline != GHOSTTY_SGR_UNDERLINE_NONE) flags |= (1 << 2);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_STRIKETHROUGH) flags |= (1 << 3);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_FAINT) flags |= (1 << 4);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_INVERSE) flags |= (1 << 5);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_BLINK) flags |= (1 << 6);
+                        if (st.flags & GHOSTTY_STYLE_FLAG_INVISIBLE) flags |= (1 << 7);
+                        ulStyle = underline;
                         if (st.underline_color.tag == GHOSTTY_STYLE_COLOR_PALETTE) {
                             GhosttyColorPaletteIndex pIdx = st.underline_color.value.palette;
                             GhosttyColorRgb rgb = colors.palette[pIdx];
@@ -1420,6 +1439,38 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeWaitChild(
     return status;
 }
 
+static const GhosttyFormatterExtras kNoFormatterExtras = GHOSTTY_FORMATTER_EXTRAS_NONE;
+
+// Formats the active screen, or only `selection` when it is non-null, into
+// `out`. libghostty-vt 1.0 configures formatters with ghostty_formatter_set().
+static bool format_terminal_text(GhosttyTerminal terminal, GhosttyFormatterFormat emit,
+                                 bool unwrap, bool trim, const GhosttySelection* selection,
+                                 std::string& out) {
+    out.clear();
+    GhosttyFormatter fmt = nullptr;
+    if (ghostty_formatter_terminal_new(nullptr, &fmt, terminal) != GHOSTTY_SUCCESS || !fmt) {
+        return false;
+    }
+    bool ok = ghostty_formatter_set(fmt, GHOSTTY_FORMATTER_OPT_EMIT, &emit) == GHOSTTY_SUCCESS &&
+              ghostty_formatter_set(fmt, GHOSTTY_FORMATTER_OPT_UNWRAP, &unwrap) == GHOSTTY_SUCCESS &&
+              ghostty_formatter_set(fmt, GHOSTTY_FORMATTER_OPT_TRIM, &trim) == GHOSTTY_SUCCESS &&
+              // 1.0 defaults VT output to palette/style/hyperlink extras; the
+              // pre-1.0 options struct emitted none, so keep that output.
+              ghostty_formatter_set(fmt, GHOSTTY_FORMATTER_OPT_EXTRAS, &kNoFormatterExtras) == GHOSTTY_SUCCESS &&
+              (!selection ||
+               ghostty_formatter_set(fmt, GHOSTTY_FORMATTER_OPT_SELECTION, selection) == GHOSTTY_SUCCESS);
+    uint8_t* out_ptr = nullptr;
+    size_t out_len = 0;
+    if (ok) ok = ghostty_formatter_format_alloc(fmt, nullptr, &out_ptr, &out_len) == GHOSTTY_SUCCESS;
+    ghostty_formatter_free(fmt);
+    if (!ok) return false;
+    if (out_ptr) {
+        out.assign(reinterpret_cast<const char*>(out_ptr), out_len);
+        ghostty_free(nullptr, out_ptr, out_len);
+    }
+    return true;
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_tinyhack_ssh_terminal_NativeBridge_nativeFormatTerminal(
     JNIEnv* env, jclass clazz, jlong sessionPtr, jint format)
@@ -1431,29 +1482,9 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeFormatTerminal(
     }
 
     std::lock_guard<std::mutex> lock(session->session_mutex);
-    GhosttyFormatterTerminalOptions opts = GHOSTTY_INIT_SIZED(GhosttyFormatterTerminalOptions);
-    opts.emit = static_cast<GhosttyFormatterFormat>(format);
-    opts.trim = true;
-    opts.unwrap = false;
-
-    GhosttyFormatter fmt = nullptr;
-    GhosttyResult res = ghostty_formatter_terminal_new(nullptr, &fmt, session->terminal, opts);
-    if (res != GHOSTTY_SUCCESS || !fmt) {
-        return env->NewStringUTF("");
-    }
-
-    uint8_t* out_ptr = nullptr;
-    size_t out_len = 0;
-    res = ghostty_formatter_format_alloc(fmt, nullptr, &out_ptr, &out_len);
-    ghostty_formatter_free(fmt);
-
-    if (res != GHOSTTY_SUCCESS || !out_ptr) {
-        return env->NewStringUTF("");
-    }
-
-    std::string text(reinterpret_cast<const char*>(out_ptr), out_len);
-    ghostty_free(nullptr, out_ptr, out_len);
-
+    std::string text;
+    format_terminal_text(session->terminal, static_cast<GhosttyFormatterFormat>(format),
+                         false, true, nullptr, text);
     return env->NewStringUTF(text.c_str());
 }
 
@@ -1476,7 +1507,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSendMouseEvent(
         if (!session->mouse_encoder || !session->mouse_event) return;
     }
 
-    ghostty_mouse_encoder_setopt_from_terminal(session->mouse_encoder, session->terminal);
+    ghostty_mouse_encoder_set_from_terminal(session->mouse_encoder, session->terminal);
 
     GhosttyMouseEncoderSize sz = GHOSTTY_INIT_SIZED(GhosttyMouseEncoderSize);
     sz.screen_width = screenWidth > 0 ? (uint32_t)screenWidth : (uint32_t)session->cols * (cellWidth > 0 ? cellWidth : 10);
@@ -1487,7 +1518,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSendMouseEvent(
     sz.padding_bottom = 0;
     sz.padding_left = 0;
     sz.padding_right = 0;
-    ghostty_mouse_encoder_setopt(session->mouse_encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE, &sz);
+    ghostty_mouse_encoder_set(session->mouse_encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE, &sz);
 
     GhosttyMouseAction gAction = GHOSTTY_MOUSE_ACTION_PRESS;
     if (action == 1) gAction = GHOSTTY_MOUSE_ACTION_RELEASE;
@@ -1517,7 +1548,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSendMouseEvent(
     pos.y = y;
     ghostty_mouse_event_set_position(session->mouse_event, pos);
 
-    char buf[256];
+    uint8_t buf[256];
     size_t written = 0;
     GhosttyResult res = ghostty_mouse_encoder_encode(session->mouse_encoder, session->mouse_event, buf, sizeof(buf), &written);
     if (res == GHOSTTY_SUCCESS && written > 0) {
@@ -1548,8 +1579,8 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSetSelection(
     GhosttyPoint sp = clampCoord(startCol, startRow);
     GhosttyPoint ep = clampCoord(endCol, endRow);
 
-    GhosttyGridRef sRef = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-    GhosttyGridRef eRef = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+    GhosttyGridRef sRef = {};
+    GhosttyGridRef eRef = {};
 
     GhosttyResult r1 = ghostty_terminal_grid_ref(session->terminal, sp, &sRef);
     GhosttyResult r2 = ghostty_terminal_grid_ref(session->terminal, ep, &eRef);
@@ -1562,7 +1593,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSetSelection(
         if (r1 != GHOSTTY_SUCCESS || r2 != GHOSTTY_SUCCESS) return;
     }
 
-    GhosttySelection sel = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection sel = {};
     sel.start = sRef;
     sel.end = eRef;
     sel.rectangle = isRectangle ? true : false;
@@ -1601,10 +1632,10 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSelectWord(
     p.value.coordinate.x = static_cast<uint16_t>(col < 0 ? 0 : col);
     p.value.coordinate.y = static_cast<uint32_t>(row < 0 ? 0 : row);
 
-    GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+    GhosttyGridRef ref = {};
     if (ghostty_terminal_grid_ref(session->terminal, p, &ref) != GHOSTTY_SUCCESS) return nullptr;
 
-    GhosttySelection sel = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection sel = {};
     GhosttyTerminalSelectWordOptions opts = GHOSTTY_INIT_SIZED(GhosttyTerminalSelectWordOptions);
     opts.ref = ref;
     if (ghostty_terminal_select_word(session->terminal, &opts, &sel) != GHOSTTY_SUCCESS) {
@@ -1615,7 +1646,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeSelectWord(
     }
 
     // Normalize to forward order so the returned bounds are top-left/bottom-right
-    GhosttySelection ordered = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection ordered = {};
     if (ghostty_terminal_selection_ordered(session->terminal, &sel,
                                            GHOSTTY_SELECTION_ORDER_FORWARD, &ordered) == GHOSTTY_SUCCESS) {
         sel = ordered;
@@ -1657,12 +1688,12 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetSelectionViewport(
 
     std::lock_guard<std::mutex> lock(session->session_mutex);
 
-    GhosttySelection sel = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection sel = {};
     if (ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_SELECTION, &sel) != GHOSTTY_SUCCESS) {
         return nullptr;
     }
 
-    GhosttySelection ordered = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection ordered = {};
     if (ghostty_terminal_selection_ordered(session->terminal, &sel,
                                            GHOSTTY_SELECTION_ORDER_FORWARD, &ordered) == GHOSTTY_SUCCESS) {
         sel = ordered;
@@ -1701,7 +1732,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeHasSelection(
     auto* session = reinterpret_cast<NativeSession*>(sessionPtr);
     if (!session || session->is_closed.load() || !session->terminal) return JNI_FALSE;
     std::lock_guard<std::mutex> lock(session->session_mutex);
-    GhosttySelection sel = GHOSTTY_INIT_SIZED(GhosttySelection);
+    GhosttySelection sel = {};
     GhosttyResult res = ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_SELECTION, &sel);
     return res == GHOSTTY_SUCCESS ? JNI_TRUE : JNI_FALSE;
 }
@@ -1716,20 +1747,15 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetSelectionText(
         return env->NewStringUTF("");
     }
     std::lock_guard<std::mutex> lock(session->session_mutex);
-    GhosttyTerminalSelectionFormatOptions opts = GHOSTTY_INIT_SIZED(GhosttyTerminalSelectionFormatOptions);
-    opts.emit = GHOSTTY_FORMATTER_FORMAT_PLAIN;
-    opts.unwrap = true;
-    opts.trim = true;
-    opts.selection = nullptr;
-    uint8_t* out_ptr = nullptr;
-    size_t out_len = 0;
-    GhosttyResult res = ghostty_terminal_selection_format_alloc(session->terminal, nullptr, opts, &out_ptr, &out_len);
-    if (res != GHOSTTY_SUCCESS || !out_ptr) {
+    // Plain, unwrapped and trimmed: the text Ghostty copies to the clipboard.
+    GhosttySelection active = {};
+    std::string text;
+    if (ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_SELECTION, &active) != GHOSTTY_SUCCESS ||
+        !format_terminal_text(session->terminal, GHOSTTY_FORMATTER_FORMAT_PLAIN, true, true, &active, text) ||
+        text.empty()) {
         return env->NewStringUTF("");
     }
-    // Ensure null-terminated for NewStringUTF: construct via byte array to handle utf8
-    std::string text(reinterpret_cast<char*>(out_ptr), out_len);
-    ghostty_free(nullptr, out_ptr, out_len);
+    const size_t out_len = text.size();
     // Use NewStringUTF expects modified UTF-8; but we have raw utf8. For simplicity use byte array -> string
     // Create jstring via NewStringUTF; text should be valid utf8 ascii
     jstring jstr = env->NewStringUTF(text.c_str());
@@ -1764,7 +1790,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetHyperlinkUri(
     p.value.coordinate.x = static_cast<uint16_t>(col < 0 ? 0 : col);
     p.value.coordinate.y = static_cast<uint32_t>(row < 0 ? 0 : row);
 
-    GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+    GhosttyGridRef ref = {};
     GhosttyResult res = ghostty_terminal_grid_ref(session->terminal, p, &ref);
     if (res != GHOSTTY_SUCCESS) return nullptr;
 
@@ -1799,7 +1825,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeIsSyncOutputActive(
     if (!session || session->is_closed.load() || !session->terminal) return JNI_FALSE;
     std::lock_guard<std::mutex> lock(session->session_mutex);
     GhosttyTerminalModeConfig cfg = {};
-    cfg.mode = GHOSTTY_MODE_SYNC_OUTPUT;
+    cfg.mode = GHOSTTY_MODE_SYNCHRONIZED_OUTPUT;
     GhosttyResult res = ghostty_terminal_get(session->terminal, GHOSTTY_TERMINAL_DATA_MODE, &cfg);
     if (res != GHOSTTY_SUCCESS) return JNI_FALSE;
     return cfg.value ? JNI_TRUE : JNI_FALSE;
@@ -1852,7 +1878,7 @@ static std::vector<uint64_t> collectPromptRows(GhosttyTerminal term) {
         p.tag = GHOSTTY_POINT_TAG_SCREEN;
         p.value.coordinate.x = 0;
         p.value.coordinate.y = (uint32_t)y;
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef ref = {};
         if (ghostty_terminal_grid_ref(term, p, &ref) != GHOSTTY_SUCCESS) continue;
         GhosttyRow row;
         if (ghostty_grid_ref_row(&ref, &row) != GHOSTTY_SUCCESS) continue;
@@ -1892,7 +1918,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeScrollToPreviousPrompt(
     if (!found) return JNI_FALSE;
     LOGI("scrollPrev target=%llu", (unsigned long long)target);
     GhosttyTerminalScrollViewport vp = {};
-    vp.tag = GHOSTTY_SCROLL_VIEWPORT_ROW;
+    vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_ROW;
     vp.value.row = (size_t)target;
     ghostty_terminal_scroll_viewport(session->terminal, vp);
     return JNI_TRUE;
@@ -1920,7 +1946,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeScrollToNextPrompt(
     if (!found) return JNI_FALSE;
     LOGI("scrollNext target=%llu", (unsigned long long)target);
     GhosttyTerminalScrollViewport vp = {};
-    vp.tag = GHOSTTY_SCROLL_VIEWPORT_ROW;
+    vp.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_ROW;
     vp.value.row = (size_t)target;
     ghostty_terminal_scroll_viewport(session->terminal, vp);
     return JNI_TRUE;
@@ -1947,7 +1973,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetLastCommandOutput(
         GhosttyPoint p = {};
         p.tag = GHOSTTY_POINT_TAG_SCREEN;
         p.value.coordinate.y = (uint32_t)y;
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef ref = {};
         if (ghostty_terminal_grid_ref(session->terminal, p, &ref) != GHOSTTY_SUCCESS) break;
         GhosttyRow row;
         if (ghostty_grid_ref_row(&ref, &row) != GHOSTTY_SUCCESS) break;
@@ -1967,7 +1993,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetLastCommandOutput(
         GhosttyPoint pRow = {};
         pRow.tag = GHOSTTY_POINT_TAG_SCREEN;
         pRow.value.coordinate.y = (uint32_t)y;
-        GhosttyGridRef refRow = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef refRow = {};
         if (ghostty_terminal_grid_ref(session->terminal, pRow, &refRow) != GHOSTTY_SUCCESS) continue;
         GhosttyRow row;
         if (ghostty_grid_ref_row(&refRow, &row) != GHOSTTY_SUCCESS) continue;
@@ -1983,7 +2009,7 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetLastCommandOutput(
             p.tag = GHOSTTY_POINT_TAG_SCREEN;
             p.value.coordinate.x = x;
             p.value.coordinate.y = (uint32_t)y;
-            GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+            GhosttyGridRef ref = {};
             if (ghostty_terminal_grid_ref(session->terminal, p, &ref) != GHOSTTY_SUCCESS) continue;
             GhosttyCell cell;
             if (ghostty_grid_ref_cell(&ref, &cell) != GHOSTTY_SUCCESS) continue;
@@ -2048,26 +2074,18 @@ Java_com_tinyhack_ssh_terminal_NativeBridge_nativeGetLastCommandOutput(
         pEnd.tag = GHOSTTY_POINT_TAG_SCREEN;
         pEnd.value.coordinate.x = (uint16_t)(cols > 0 ? cols - 1 : 0);
         pEnd.value.coordinate.y = (uint32_t)outEnd;
-        GhosttyGridRef sRef = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttyGridRef eRef = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef sRef = {};
+        GhosttyGridRef eRef = {};
         if (ghostty_terminal_grid_ref(session->terminal, pStart, &sRef) == GHOSTTY_SUCCESS &&
             ghostty_terminal_grid_ref(session->terminal, pEnd, &eRef) == GHOSTTY_SUCCESS) {
-            GhosttySelection sel = GHOSTTY_INIT_SIZED(GhosttySelection);
+            GhosttySelection sel = {};
             sel.start = sRef;
             sel.end = eRef;
             sel.rectangle = false;
-            ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_SELECTION, &sel);
-            GhosttyTerminalSelectionFormatOptions opts = GHOSTTY_INIT_SIZED(GhosttyTerminalSelectionFormatOptions);
-            opts.emit = GHOSTTY_FORMATTER_FORMAT_PLAIN;
-            opts.unwrap = true;
-            opts.trim = true;
-            uint8_t* outPtr = nullptr;
-            size_t outLen = 0;
-            if (ghostty_terminal_selection_format_alloc(session->terminal, nullptr, opts, &outPtr, &outLen) == GHOSTTY_SUCCESS && outPtr) {
-                result.assign((char*)outPtr, outLen);
-                ghostty_free(nullptr, outPtr, outLen);
-            }
-            ghostty_terminal_set(session->terminal, GHOSTTY_TERMINAL_OPT_SELECTION, nullptr);
+            // The formatter takes the range directly, so the user's own
+            // selection is left untouched.
+            format_terminal_text(session->terminal, GHOSTTY_FORMATTER_FORMAT_PLAIN,
+                                 true, true, &sel, result);
         }
     }
     return env->NewStringUTF(result.c_str());

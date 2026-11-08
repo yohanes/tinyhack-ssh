@@ -236,7 +236,7 @@ Clients can discover supported features with `OSC 99;i=probe:p=?;ST`.
 The protocol is documented at <https://sw.kovidgoyal.net/kitty/desktop-notifications/>.
 
 Rebuild the VT core with `scripts/build-ghostty-android.sh` (Zig 0.17.0 and the
-pinned Ghostty v1.4.0 source are required). The tracked
+pinned libghostty-vt 1.0.0 source, tag `vt-1.0.0`, are required). The tracked
 `patches/ghostty-osc99.patch` forwards parsed OSC 99 chunks through a dedicated
 C callback; the Android bridge keeps notification effects outside the VT lock.
 

@@ -106,8 +106,17 @@ TINYHACK_SSH_KEY_PASSWORD=replace-me
 ## 4. Rebuild native userland for 16 KiB pages
 
 When terminal-core code changes, run `scripts/build-ghostty-android.sh` with
-Zig 0.17.0 and the pinned Ghostty v1.4.0 source. This applies the tracked
-OSC 99 patch and installs the archive/header used by the Gradle build.
+Zig 0.17.x (the project toolchain in `build/toolchains`) and the pinned
+libghostty-vt 1.0.0 source (tag `vt-1.0.0`). This applies the tracked OSC 99
+patch and installs the archive/header used by the Gradle build. After updating
+libghostty-vt, run `uv run scripts/test-libghostty-smoke.py` against a debug
+build (an x86_64 emulator with ARM translation works) to exercise every API
+path the Android bridge uses, then `uv run scripts/collect-libghostty-licenses.py`.
+libghostty-vt links third-party code (Highway, simdutf, uucode, Wuffs,
+translate-c, listed as `linked` in `ghostty/deps/libghostty-vt-third-party.json`);
+the script writes their license files to `licenses/` and the APK assets, and
+fails until `THIRD-PARTY-NOTICES.md` and the About screen list each one. Files a
+package refers to but does not ship are kept in `license-sources/`.
 
 Run this for the first release and whenever Bash, BusyBox, curl, rsync,
 OpenSSH, OpenSSL, Mosh, protobuf, ncurses, zlib, the NDK, or their build flags
@@ -204,14 +213,15 @@ bash scripts/test-remote-transfer.sh
 bash scripts/test-remote-browser.sh   # throwaway local sshd; needs openssh-server
 bash scripts/audit-cloudflared.sh
 cd ghostty
-zig build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl
+ZIG=../build/toolchains/zig-x86_64-linux-0.17.0/zig  # libghostty-vt 1.0 needs Zig 0.17.x
+"$ZIG" build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl
 ```
 
 The full upstream suite requires the default Debug configuration (its tracked-pin
 tests require slow runtime safety). For optimized security-focused checks:
 
 ```bash
-zig build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl \
+"$ZIG" build test-lib-vt -Demit-lib-vt=true -Dtarget=x86_64-linux-musl \
   -Doptimize=ReleaseSafe -Dtest-filter='OSC 99' -Dtest-filter=paste \
   -Dtest-filter=kitty -Dtest-filter='cursor page' -Dtest-filter='wide page'
 ```

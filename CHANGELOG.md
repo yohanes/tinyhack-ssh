@@ -1,5 +1,29 @@
 # Release notes
 
+## Unreleased
+
+- Update the terminal core to libghostty-vt 1.0.0 (tag `vt-1.0.0`,
+  `0fa3d577a5614150ff8e2c152de5fb9d5c6d2dec`), the first release with a stable
+  C API and ABI. It needs Zig 0.17.x; the build uses the project toolchain.
+- Port the Android bridge to the 1.0 API: style flags, the sized grapheme
+  buffer, Kitty image pixels as a borrowed string, borrowed key text, byte
+  encoder buffers, option-based formatters (selection text and command output
+  no longer change the user's selection), and the renamed enums.
+- Rebase the OSC 99 patch. Its terminal option moves to 10000, away from
+  upstream values, which now continue past 48; the callback type is
+  registered for the library's type metadata.
+- Add `scripts/test-libghostty-smoke.py`, a debug-build check of every
+  libghostty path the app uses (keys, Kitty keyboard, mouse, bracketed paste,
+  formatter, selection, hyperlinks, scrolling, synchronized output, OSC 99,
+  rendering).
+- List the third-party code linked into libghostty-vt in the notices and the
+  About screen: Highway 1.2.0, simdutf 9.0.0, uucode 0.2.0 (with Unicode data
+  and Bjoern Hoehrmann's UTF-8 decoder), Wuffs 0.4.0-alpha.10, and translate-c
+  2.0.0, each with its license text. `scripts/collect-libghostty-licenses.py`
+  regenerates them from Ghostty's dependency manifest.
+- Bring the APK's copy of `THIRD-PARTY-NOTICES.md` up to date; 1.3.0 shipped
+  it without the Ubuntu template, boot shim, and hostfs patch entries.
+
 ## 1.3.0 (version code 11) — Linux environment manager, Ubuntu, shared home, local DNS, 2026-11-04
 
 - Add a **Linux environments** screen (drawer). It lists every UML environment
