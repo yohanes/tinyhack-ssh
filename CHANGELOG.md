@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 1.4.0 (version code 12) — libghostty-vt 1.0, downloaded Linux images, 2026-11-08
 
 - Update the terminal core to libghostty-vt 1.0.0 (tag `vt-1.0.0`,
   `0fa3d577a5614150ff8e2c152de5fb9d5c6d2dec`), the first release with a stable

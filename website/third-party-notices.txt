@@ -5,7 +5,8 @@ their licenses, and the corresponding source-offer. License texts are bundled in
 the [`licenses/`](licenses/) directory.
 
 Tinyhack SSH's own code is MIT-licensed (see [LICENSE](LICENSE)). Some components
-below are separate executables, while Ghostty is linked into the JNI library and
+below are separate executables, while Ghostty (with the Highway, simdutf, uucode,
+Wuffs, and translate-c code it links) is linked into the JNI library and
 OpenSSL, protobuf, Abseil, utf8_range, ncurses, and zlib are statically linked into the executables
 identified below. Each component remains subject to its own license and notice
 requirements; this notice does not attempt to reclassify linked components as
@@ -29,7 +30,12 @@ requirements; this notice does not attempt to reclassify linked components as
 | utf8_range (statically linked into mosh-client via protobuf) | bundled with protobuf 36.2 | MIT | `licenses/utf8-range.LICENSE.MIT` | protobuf source tree, `third_party/utf8_range/` |
 | ncurses / tinfo (statically linked into mosh-client) | 6.6 | X11-style (permissive) | `licenses/ncurses-6.6.COPYING` | upstream tarball + `build-mosh/` |
 | zlib (statically linked into mosh-client) | 1.3.2 | zlib license | `licenses/zlib-1.3.2.LICENSE` | upstream tarball + `build-mosh/` |
-| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | 1.4.0 (`83fb95624b0439ee660c2679b43b38c8b63769cd`) | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + `patches/ghostty-osc99.patch`, `scripts/build-ghostty-android.sh` + generated `native/ghostty/` archive |
+| Ghostty terminal core (`libghostty-vt.a`, linked into `libghostty-android.so`) | libghostty-vt 1.0.0 (`0fa3d577a5614150ff8e2c152de5fb9d5c6d2dec`) | MIT | `licenses/ghostty-MIT.LICENSE` | `ghostty/` + `patches/ghostty-osc99.patch`, `scripts/build-ghostty-android.sh` + generated `native/ghostty/` archive |
+| Google Highway (SIMD; linked into libghostty-vt) | 1.2.0 (`66486a10623fa0d72fe91260f96c892e41aceb06`) | Apache-2.0 OR BSD-3-Clause | `licenses/libghostty-highway-1.2.0.LICENSE` | Ghostty dependency package (`ghostty/deps/`), https://github.com/google/highway |
+| simdutf (UTF-8/UTF-16 SIMD; linked into libghostty-vt) | 9.0.0 (vendored in Ghostty) | Apache-2.0 OR MIT | `licenses/libghostty-simdutf-9.0.0.LICENSE` | `ghostty/pkg/simdutf/vendor/`, https://github.com/simdutf/simdutf |
+| uucode (Unicode properties; linked into libghostty-vt) with Unicode Character Database tables and Bjoern Hoehrmann's UTF-8 decoder | 0.2.0 (`1fb73433bba5d93366c57f23ff2e9d7939746500`), UCD 18.0.0 | MIT AND Unicode-3.0 | `licenses/libghostty-uucode-0.2.0.LICENSE` | Ghostty dependency package, https://github.com/jacobsandlund/uucode |
+| Wuffs (Kitty graphics PNG/JPEG/zlib decoding; linked into libghostty-vt) | 0.4.0-alpha.10 (`7411f488fe2e2c205c3d3b3d28638b7356522930`) | Apache-2.0 OR MIT | `licenses/libghostty-wuffs-0.4.0-alpha.10.LICENSE` | Ghostty dependency package, https://github.com/google/wuffs |
+| translate-c runtime helpers (linked into libghostty-vt) | 2.0.0 (`02ff0c523fb92a38939b04d0145c4a9602a74d56`) | MIT | `licenses/libghostty-translate_c-2.0.0.LICENSE` | Ghostty dependency package, https://github.com/ziglang/translate-c |
 | terminfo entries (`xterm-kitty`, `xterm-ghostty`, `ghostty`, `kitty`, `xterm-256color`) | N/A | Ghostty/kitty/ncurses upstream licenses | Ghostty MIT above; `licenses/ncurses-6.6.COPYING`; GPLv3 text bundled with the GPL components | compiled assets plus reproducible source in `terminfo-sources/` |
 | Cascadia Code and Cascadia Mono | bundled font versions | SIL OFL 1.1 | `licenses/font-cascadia.OFL-1.1` | Microsoft Cascadia Code project |
 | Fira Code | bundled font version | SIL OFL 1.1 | `licenses/font-fira-code.OFL-1.1` | Fira Code project |
@@ -66,26 +72,39 @@ The exact copyright notices and license texts are included in the APK under
 font names are used for upstream fonts; the patched JetBrains font is identified
 as a Nerd Font in both its embedded metadata and these notices.
 
-## UML Debian environments (1.1.0)
+## UML Debian and Ubuntu environments (1.1.0; Ubuntu added later)
 
 - ARM64 User-Mode Linux: Linux 7.2.0-rc4 port at
   `32e5e10b81d8882bdaf77b71e4106a941840c750` from
-  https://github.com/zalexdev/linux-um-arm64, with the tracked networking and
-  ELF-alignment patches. GPL-2.0; see `linux-uml.GPL-2.0`.
+  https://github.com/zalexdev/linux-um-arm64, with the tracked networking,
+  ELF-alignment and hostfs-owner patches. GPL-2.0; see `linux-uml.GPL-2.0`.
 - passt at `6aa4f88bd9846411edff3ed70460475b538addca`, GPL-2.0-or-later
   with per-file BSD terms; see `passt.GPL-2.0-or-later` and its source LICENSES.
   The UML networking adapter is part of the Linux port's source tree.
 - musl libc linked into passt: see `musl.COPYRIGHT`; corresponding musl source
   is included in the release source archive.
+- The Debian and Ubuntu templates are not part of the APK. The app downloads
+  them when it creates an environment, from GitHub releases tagged
+  `uml-template-TYPE-HASH` at https://github.com/yohanes/tinyhack-ssh/releases.
+  Each such release also carries that image's corresponding source
+  (`NAME-source.tar`), and the app's corresponding-source archive includes it too.
 - Debian 13 ARM64 slim template, official image index digest
   `sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4`.
   Its packages retain their copyright and license notices under
   `/usr/share/doc` inside the image. Exact Debian source packages and checksums
-  are retained in the release's corresponding-source archive.
-- The template's static BusyBox 1.38.0 uses GNU libc from Ubuntu
+  are retained with the template and in the corresponding-source archive.
+- Ubuntu 26.04 LTS ARM64 template, official image index digest
+  `sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c`.
+  Its packages retain their copyright and license notices under
+  `/usr/share/doc` inside the image. Exact Ubuntu source packages and checksums
+  are retained with the template and in the corresponding-source archive.
+- The UML boot shim (`assets/usr/share/uml/shim.cpio`) contains a separately
+  configured static BusyBox 1.38.0 (GPL-2.0) built from the same source; its
+  configuration is retained in the release archive.
+- The templates' static BusyBox 1.38.0 uses GNU libc from Ubuntu
   `2.43-2ubuntu2cross1` (cross-toolchain-base 80ubuntu3). BusyBox source,
   configuration, GNU libc source, and cross-toolchain source are retained in
   the release archive. GNU libc is LGPL-2.1-or-later; see its source COPYING.LIB.
 
 The UML port remains experimental. Guest package installation connects directly
-from the device to the user's configured Debian repositories.
+from the device to the user's configured Debian or Ubuntu repositories.
